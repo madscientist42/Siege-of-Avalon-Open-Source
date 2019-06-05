@@ -59,23 +59,19 @@ unit Engine;
 {                                                                              }
 {******************************************************************************}
 
-{$INCLUDE Anigrp30cfg.inc}
-
 interface
 
 uses
-  Classes,
+  System.Classes,
+  System.Types,
+  System.IOUtils,
+  System.UITypes,
   Anigrp30,
-  AniDec30,
-  ExtCtrls,
-  Windows,
-  Math,
-  SysUtils,
-  INIFiles,
+  System.Math,
+  System.SysUtils,
+  System.IniFiles,
   DirectX,
   LogFile,
-  MMSystem,
-  Graphics,
   Resource,
   Titles,
   DFX,
@@ -91,10 +87,6 @@ function UnFormatFP( S : string ) : double;
 procedure CheckCache;
 procedure GetChapters( INI : TINIFile );
 function SymbolReplacement( const Script : string ) : string;
-
-const
-  PI = 3.1415926535;
-  pi2 = 2 * PI;
 
 var
   Game : TAniView;
@@ -116,11 +108,14 @@ var
   CurrentStartingPoint : string;
   TravelList : TStringList;
   PlotShadows : boolean;
+  PlotScreenRes : integer;
   DefaultPants : TLayerResource;
   FemDefaultPants : TLayerResource;
   ElfDefaultPants : TLayerResource;
   RatResource : TCharacterResource;
   WolfResource : TCharacterResource;
+  GolemResource : TCharacterResource;
+  SkeletonResource : TCharacterResource;
   GIFToPOX : boolean;
   AllSpells : boolean;
   Bikini : boolean;
@@ -146,16 +141,17 @@ var
   SOLName : string;
   QuickSave : string;
   BlackScript : string;
+
 implementation
 
 uses
+  SoAOS.Types,
   AniDemo,
   Character,
   Parts,
   Effects,
   Display,
-  Spells1,
-  music;
+  Music;
 
 type
   TCacheInfo = record
@@ -842,7 +838,7 @@ begin
               if StrToInt( Parms ) <> 0 then
               begin
                 r := random( StrToInt( Parms ) );
-                T := pi2 * random( 360 ) / 360;
+                T := c2PI * random( 360 ) / 360;
                 X := round( r * cos( T ) ) + TCharacter( ObjectRef ).X;
                 Y := round( r * sin( T ) ) + TCharacter( ObjectRef ).Y;
                 TCharacter( ObjectRef ).walkTo( X, Y, 16 );
@@ -903,7 +899,7 @@ begin
           begin
             if ObjectRef is TSpriteObject then
             begin
-              TSpriteObject( ObjectRef ).Say( Parms, clWhite );
+              TSpriteObject( ObjectRef ).Say( Parms, cTalkWhiteColor );
             end;
           end;
         end
@@ -929,7 +925,7 @@ begin
         begin
           if Assigned( MusicLib ) then
           begin
-            MusicLib.OpenThisSong( SoundPath + 'theme\' + Parms );
+            MusicLib.OpenThisSong( AnsiString( SoundPath + 'theme\' + Parms ) );
             MusicLib.PlayThisSong;
             frmMain.SoundTimer.Enabled := false;
           end;
@@ -938,7 +934,8 @@ begin
         begin
           if Assigned( MusicLib ) then
           begin
-            frmMain.SoundTimer.Enabled := false;
+            MusicLib.PauseThisSong;
+            frmMain.SoundTimer.Enabled := true;
           end;
         end
 
@@ -1501,7 +1498,7 @@ begin
     //Calculate TotalSize, Load Name and Size fields
     for i := 0 to Count - 1 do
     begin
-      pList^.Name := ChangeFileExt( FileList.strings[ i ], '' );
+      pList^.Name := ShortString( ChangeFileExt( FileList.strings[ i ], '' ) );
 
 
       AssignFile( F, Dir + FileList.strings[ i ] );

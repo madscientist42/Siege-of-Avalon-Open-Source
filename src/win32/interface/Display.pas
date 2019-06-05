@@ -62,14 +62,13 @@ unit Display;
 interface
 
 uses
-  SysUtils,
-  Classes,
-  Controls,
-  Forms,
+  System.SysUtils,
+  System.Classes,
+  Vcl.Controls,
   Gametext,
   Anigrp30,
   Engine,
-  INIFiles,
+  System.IniFiles,
   LogFile;
 
 type
@@ -214,7 +213,6 @@ const
   FailName : string = 'TDisplay.Mousedown';
 begin
   try
-
     InBound := ( X >= X1 ) and ( X < X2 ) and ( Y >= Y1 ) and ( Y < Y2 );
   except
     on E : Exception do
@@ -279,7 +277,7 @@ var
   F : TextFile;
 begin
 
-  AssignFile( F, ExtractFilePath( Application.ExeName ) + '\mylog.txt' );
+  AssignFile( F, ExtractFilePath( ParamStr(0) ) + '\mylog.txt' );
   //Reset(F);
   //Readln(F, S);
   Append( F ); //, extractfilepath(application.exename) + '\mylog.txt' );

@@ -62,15 +62,9 @@ unit Spells1;
 interface
 
 uses
-  Classes,
-  Windows,
-  SysUtils,
-  Engine,
-  MiscAI,
+  System.Types,
   Character,
-  Resource,
-  Spells,
-  LogFile;
+  Resource;
 
 var
   GreatFoot : TSpell;
@@ -180,7 +174,11 @@ function LoadSpells1 : boolean;
 implementation
 
 uses
-  BasicHumanoidAI;
+  System.Classes,
+  System.SysUtils,
+  Engine,
+  Spells,
+  LogFile;
 
 function LoadSpells1 : boolean;
 begin
@@ -483,7 +481,7 @@ begin
     for i := 0 to 2 do
     begin
       NewCharacter := nil;
-      Effect := nil;
+///      Effect := nil;
 
       Source.Clone( TObject( NewCharacter ), 'PMI' + IntToStr( Random( 25 ) * Random( 10 ) ) );
 

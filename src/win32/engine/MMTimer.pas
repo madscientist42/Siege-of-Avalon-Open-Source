@@ -12,7 +12,9 @@ unit MMTimer;
 interface
 
 uses
-  Windows, Classes, SysUtils;
+  Winapi.Windows,
+  System.Classes,
+  System.SysUtils;
 
 type
   TAniTimer = class;
@@ -44,8 +46,8 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    procedure Resume;
-    procedure Pause;
+//    procedure Resume;
+//    procedure Pause;
   published
     property Enabled: Boolean read TimerOn write UpdateTimerStatus default False;
     property TimerPriority: TThreadPriority read TimerThreadPriority write UpdateTimerPriority default tpNormal;
@@ -151,7 +153,7 @@ begin
     AniTimerThread.AniTimer := Self;
     AniTimerThread.FreeOnTerminate := True;
     AniTimerThread.Priority := TimerThreadPriority;
-    AniTimerThread.Resume;
+    AniTimerThread.Start;  //Resume;
     InitTimer;
   end
   else begin
@@ -163,7 +165,7 @@ begin
   end;
   TimerOn := NewOn;
 end;
-
+//
 procedure TAniTimer.UpdateTimerInterval(NewInterval: Cardinal);
 const
   FailName: string = 'TAniTimer.UpdateTimerInterval';
@@ -186,21 +188,23 @@ begin
   TimerThreadPriority := NewPriority;
 end;
 
-procedure TAniTimer.Pause;
-const
-  FailName: string = 'TAniTimer.Pause';
-begin
-  if TimerOn then AniTimerThread.Suspend;
-  TimerPaused := True;
-end;
+//procedure TAniTimer.Pause;
+//const
+//  FailName: string = 'TAniTimer.Pause';
+//begin
+//  if TimerOn then
+//    AniTimerThread.Terminate; // Suspend;
+//  TimerPaused := True;
+//end;
 
-procedure TAniTimer.Resume;
-const
-  FailName: string = 'TAniTimer.Resume';
-begin
-  if TimerOn then AniTimerThread.Resume;
-  TimerPaused := False;
-end;
+//procedure TAniTimer.Resume;
+//const
+//  FailName: string = 'TAniTimer.Resume';
+//begin
+//  if TimerOn then
+//    AniTimerThread.Start; // Resume;
+//  TimerPaused := False;
+//end;
 
 end.
 

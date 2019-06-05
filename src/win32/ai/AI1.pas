@@ -61,16 +61,9 @@ unit AI1;
 
 interface
 
-{$INCLUDE Anigrp30cfg.inc}
-
 uses
-  Classes,
-  SysUtils,
   Character,
-  Resource,
-  Engine,
-  Anigrp30,
-  LogFile;
+  Anigrp30;
 
 type
   TMeander = class( TAI )
@@ -122,14 +115,15 @@ type
     procedure Execute; override;
   end;
 
-
 function AssignAI1( AIName : string ) : TAI;
 
 implementation
 
-const
-  PI = 3.1415926535;
-  pi2 = 2 * PI;
+uses
+  System.Classes,
+  System.Types,
+  System.SysUtils,
+  LogFile;
 
 function AssignAI1( AIName : string ) : TAI;
 var
@@ -180,7 +174,7 @@ begin
       if Delay <= 0 then
       begin
         r := random( Leash );
-        T := pi2 * random( 360 ) / 360;
+        T := c2PI * random( 360 ) / 360;
         X := Round( r * cos( T ) ) + CenterX;
         Y := Round( r * sin( T ) / 2 ) + CenterY;
         Character.WalkTo( X, Y, 4 );

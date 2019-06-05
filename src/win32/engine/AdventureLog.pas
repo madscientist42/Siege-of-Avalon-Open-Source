@@ -59,34 +59,22 @@ unit AdventureLog;
 {                                                                              }
 {******************************************************************************}
 
-{$INCLUDE Anigrp30cfg.inc}
-
 interface
 
 uses
-  Windows,
-  Messages,
-  SysUtils,
-  Classes,
-  Graphics,
-  Controls,
-  Forms,
-  Dialogs,
-  dsgnIntf,
-  comctrls,
-  LogFile;
+  System.Classes;
 
 type
-  TAboutAdventureLogProperty = class( TPropertyEditor )
-  public
-    procedure Edit; override;
-    function GetAttributes : TPropertyAttributes; override;
-    function GetValue : string; override;
-  end;
+//  TAboutAdventureLogProperty = class( TPropertyEditor )
+//  public
+//    procedure Edit; override;
+//    function GetAttributes : TPropertyAttributes; override;
+//    function GetValue : string; override;
+//  end;
 
   TAdventureLog = class( TObject )
   private
-    FAbout : TAboutAdventureLogProperty;
+//    FAbout : TAboutAdventureLogProperty;
     FAdventureLog : TStrings;
     FLogDateList : TStringList;
     FLogDirectory : string;
@@ -96,33 +84,38 @@ type
     constructor Create;
     destructor Destroy; override;
     function AddLogEntry( LogFile : string ) : integer;
-    function ReadLogByName( LogFile : string ) : string;
-    function ReadLogByIndex( LogIndex : integer ) : string;
+    function ReadLogByName( LogFile : string ) : AnsiString;
+    function ReadLogByIndex( LogIndex : integer ) : AnsiString;
     procedure DeleteLogEntry( LogFile : string );
     procedure Clear;
-  published
-    property About : TAboutAdventureLogProperty read FAbout write FAbout;
+//  published
+//    property About : TAboutAdventureLogProperty read FAbout write FAbout;
     property LogFileList : TStringList read FLogDateList write FLogDateList;
     property LogDirectory : string read FLogDirectory write FLogDirectory;
   end;
 
 implementation
 
-procedure TAboutAdventureLogProperty.Edit;
-begin
-  Application.MessageBox( 'Adventure Log for The Game Master' + #39 + 's Table. (c) 1999 Random Features, Inc.',
-    'TAdventureLog component version 1.0', MB_OK + MB_ICONINFORMATION );
-end;
+uses
+  System.SysUtils,
+  System.IOUtils,
+  LogFile;
 
-function TAboutAdventureLogProperty.GetAttributes : TPropertyAttributes;
-begin
-  Result := [ paMultiSelect, paDialog, paReadOnly ];
-end;
+//procedure TAboutAdventureLogProperty.Edit;
+//begin
+//  Application.MessageBox( 'Adventure Log for The Game Master' + #39 + 's Table. (c) 1999 Random Features, Inc.',
+//    'TAdventureLog component version 1.0', MB_OK + MB_ICONINFORMATION );
+//end;
 
-function TAboutAdventureLogProperty.GetValue : string;
-begin
-  Result := '(about)';
-end;
+//function TAboutAdventureLogProperty.GetAttributes : TPropertyAttributes;
+//begin
+//  Result := [ paMultiSelect, paDialog, paReadOnly ];
+//end;
+
+//function TAboutAdventureLogProperty.GetValue : string;
+//begin
+//  Result := '(about)';
+//end;
 
 
 constructor TAdventureLog.Create;
@@ -175,11 +168,11 @@ begin
   end;
 end;
 
-function TAdventureLog.ReadLogByName( LogFile : string ) : string;
+function TAdventureLog.ReadLogByName( LogFile : string ) : AnsiString;
 var
   MyStream : TFileStream;
   iSize : integer;
-  MyString : string;
+  MyString : AnsiString;
 const
   FailName : string = 'TAdventureLog.ReadLogByName';
 begin
@@ -189,7 +182,7 @@ begin
 {$ENDIF}
   try
 
-    if not ( fileExists( FLogDirectory + LogFile ) ) then
+    if not ( TFile.Exists( FLogDirectory + LogFile ) ) then
     begin
       result := '';
       exit;
@@ -207,11 +200,11 @@ begin
   end;
 end;
 
-function TAdventureLog.ReadLogByIndex( LogIndex : integer ) : string;
+function TAdventureLog.ReadLogByIndex( LogIndex : integer ) : AnsiString;
 var
   MyStream : TFileStream;
   iSize : integer;
-  MyString : string;
+  MyString : AnsiString;
 const
   FailName : string = 'TAdventureLog.ReadLogByIndex';
 begin
@@ -225,7 +218,7 @@ begin
     begin
       if FLogDateList.strings[ LogIndex ] <> '' then
       begin
-        if not ( fileExists( FLogDirectory + FLogDateList.strings[ LogIndex ] ) ) then
+        if not ( TFile.Exists( FLogDirectory + FLogDateList.strings[ LogIndex ] ) ) then
         begin
           result := '';
           exit;
@@ -249,7 +242,7 @@ begin
   end;
 end;
 
-procedure TAdventureLog.DeleteLogEntry( LogFile : string );
+procedure TAdventureLog.DeleteLogEntry( LogFile : String );
 const
   FailName : string = 'TAdventureLog.DeleteLogEntry';
 begin

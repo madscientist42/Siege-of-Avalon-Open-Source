@@ -59,39 +59,26 @@ unit ShowGraphic;
 {                                                                              }
 {******************************************************************************}
 
-{$INCLUDE Anigrp30cfg.inc}
-
 interface
 
 uses
 {$IFDEF DirectX}
   DirectX,
   DXUtil,
-  DXEffects,
 {$ENDIF}
-  Windows,
-  Messages,
-  SysUtils,
-  Classes,
-  Graphics,
-  Controls,
-  Forms,
-  Dialogs,
-  ExtCtrls,
-  Character,
-  StdCtrls,
+  System.SysUtils,
+  System.IOUtils,
+  System.Classes,
+  System.Types,
+  Vcl.Controls,
+  Vcl.Forms,
   Display,
   Anigrp30,
-  math,
-  Music,
-  resource,
-  Engine,
-  Logfile;
+  Music;
   
 type
   TShowGraphic = class( TDisplay )
   private
-    BMBack : TBitmap;
     DXBack : IDirectDrawSurface;
     procedure FormMouseDown( Sender : TObject; Button : TMouseButton; Shift : TShiftState; X, Y : Integer );
   protected
@@ -101,16 +88,24 @@ type
   public
     frmMain : TForm;
     FileName : string;
-    MusicFileName : string;
+    MusicFileName : AnsiString;
     pMusic : TMusic;
     constructor Create;
     destructor Destroy; override;
     procedure Init; override;
     procedure Release; override;
   end;
+
 implementation
+
 uses
-  AniDemo;
+  SoAOS.Types,
+  SoAOS.Graphics.Draw,
+  AniDemo,
+  Resource,
+  Engine,
+  LogFile;
+
 { TShowGraphic }
 
 constructor TShowGraphic.Create;
@@ -147,8 +142,7 @@ end; //Destroy
 
 procedure TShowGraphic.Init;
 var
-  InvisColor : integer;
-
+  pr : TRect;
 const
   FailName : string = 'TShowGraphic.init';
 begin
@@ -161,31 +155,23 @@ begin
       Exit;
     inherited;
     MouseCursor.Cleanup;
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, ResWidth, ResHeight ), DDBLTFAST_NOCOLORKEY or DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, ResWidth, ResHeight );
+    lpDDSBack.BltFast( 0, 0, lpDDSFront, @pr, DDBLTFAST_NOCOLORKEY or DDBLTFAST_WAIT );
     MouseCursor.PlotDirty := false;
-
 
     frmMain.OnMouseDown := FormMouseDown;
 
-    BMBack := TBitmap.Create;
-  //transparent color
-    InvisColor := $00FFFF00;
+    DXBack := SoAOS_DX_LoadBMP( InterfacePath + FileName, cInvisColor );
+    pr := Rect( 0, 0, 800, 600 ); //NOHD
+    lpDDSBack.BltFast( 0, 0, DXBack, @pr, DDBLTFAST_WAIT );
 
-    BMBack.LoadFromFile( InterfacePath + FileName );
-    DXBack := DDGetImage( lpDD, BMBack, InvisColor, False );
-    lpDDSBack.BltFast( 0, 0, DXBack, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-
-    BMBack.Free;
-
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
+    SoAOS_DX_BltFront;
 
     if assigned( pMusic ) then
     begin
-      if FileExists( SoundPath + 'Theme\' + MusicFileName ) then
+      if TFile.Exists( SoundPath + 'Theme\' + MusicFileName ) then
       begin
-        pMusic.OpenThisSong( SoundPath + 'Theme\' + MusicFileName );
+        pMusic.OpenThisSong( AnsiString ( SoundPath + 'Theme\' + MusicFileName ) );
         pMusic.PlayThisSong;
         pMusic.SetSongVolume( 99 );
       end;

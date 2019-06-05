@@ -60,11 +60,12 @@ program Siege;
 {******************************************************************************}
 
 uses
-  Forms,
-  Windows,
-  SysUtils,
-  IniFiles,
-  Controls,
+  Vcl.Forms,
+  Winapi.Windows,
+  System.SysUtils,
+  System.IniFiles,
+  System.IOUtils,
+  Vcl.Controls,
   AniDemo in 'engine\AniDemo.pas' {frmMain},
   Loader in 'engine\Loader.pas',
   Resource in 'engine\Resource.pas',
@@ -80,7 +81,6 @@ uses
   WolfAI in 'ai\WolfAI.pas',
   Anigrp30 in 'engine\Anigrp30.pas',
   AniDec30 in 'engine\AniDec30.pas',
-  String32 in 'engine\string32.pas',
   DXEffects in 'graphics\DXEffects.pas',
   DXUtil in 'graphics\DXUtil.pas',
   LogFile in 'Engine\LogFile.pas',
@@ -103,7 +103,6 @@ uses
   Spells1 in 'engine\Spells1.pas',
   Intro in 'interface\Intro.pas',
   SaveFile in 'engine\SaveFile.pas',
-  Security in 'engine\Security.pas',
   ItemDatabase in 'engine\ItemDatabase.pas',
   AddKickNPC in 'interface\AddKickNPC.pas',
   LoadGame in 'interface\LoadGame.pas',
@@ -115,7 +114,7 @@ uses
   MP3 in 'sound\MP3.pas',
   Music in 'sound\Music.pas',
   NPCBehavior in 'interface\NPCBehavior.pas',
-  ShowGraphic in 'interface\Showgraphic.pas',
+  Showgraphic in 'interface\Showgraphic.pas',
   MousePtr in 'engine\MousePtr.pas',
   ObjInventory in 'interface\ObjInventory.pas',
   OpenAnim in 'interface\OpenAnim.pas',
@@ -123,8 +122,11 @@ uses
   Scroll in 'engine\Scroll.pas',
   Statistics in 'interface\Statistics.pas',
   strFunctions in 'engine\strFunctions.pas',
-  Transit in 'interface\Transit.pas';
-
+  Transit in 'interface\Transit.pas',
+  MMTimer in 'engine\MMTimer.pas',
+  SoAOS.Types in 'engine\SoAOS.Types.pas',
+  SoAOS.Graphics.Draw in 'graphics\SoAOS.Graphics.Draw.pas',
+  SoAOS.Graphics.Types in 'graphics\SoAOS.Graphics.Types.pas';
 
 {$R *.RES}
 
@@ -154,7 +156,7 @@ begin
     Screen.Cursor := crNone;
     Application.ProcessMessages;
 
-    if FileExists( OpeningMovie ) and ( LowerCase( SiegeIni.ReadString( 'Settings', 'ShowIntro', 'true' ) ) = 'true' ) then
+    if TFile.Exists( OpeningMovie ) and ( LowerCase( SiegeIni.ReadString( 'Settings', 'ShowIntro', 'true' ) ) = 'true' ) then
     begin
       //Begin the opening Movie
       StrPCopy( zAppName, ExtractFilePath( Application.ExeName ) + 'BinkPlay.exe' + ' ' + OpeningMovie + ' ' + MovieSwitches + '/P' );
@@ -186,7 +188,7 @@ begin
   //Begin the closing Movie
   Screen.Cursor := crNone;
   Application.ProcessMessages;
-  if FileExists( ClosingMovie ) and bPlayClosingMovie then
+  if TFile.Exists( ClosingMovie ) and bPlayClosingMovie then
   begin
     StrPCopy( zAppName, ExtractFilePath( Application.ExeName ) + 'BinkPlay.exe' + ' ' + ClosingMovie + ' ' + MovieSwitches );
     GetDir( 0, WorkDir );
@@ -204,6 +206,7 @@ begin
 end;
 
 begin
+//  ReportMemoryLeaksOnShutdown := TRUE;
 
   // A means of assuring that only one copy of game runs at a time, but does it REALLY work? What is runtime error 216?
   hMutex := OpenMutex( MUTEX_ALL_ACCESS, False, MUTEXNAME );
@@ -212,7 +215,7 @@ begin
     CloseHandle( hMutex );
     Exit;
   end;
-  hMutex := CreateMutex( nil, True, PChar( MUTEXNAME ) );
+  hMutex := CreateMutex( nil, True, MUTEXNAME );
 
   PlayOpeningMovie;
   bPlayClosingMovie := False; // Game must force to true to show closing movie

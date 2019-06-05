@@ -61,23 +61,24 @@ unit Resource;
 
 interface
 
-{$INCLUDE Anigrp30cfg.inc}
-
 uses
-  Classes,
-  Windows,
-  SysUtils,
-  Graphics,
+  System.Classes,
+  System.Types,
+  System.SysUtils,
+  System.IOUtils,
+  System.UITypes,
+//  Vcl.Graphics,
+  SoAOS.Types,
   Anigrp30,
   AniDec30,
-  IniFiles,
+  System.IniFiles,
 {$IFDEF DirectX}
   DirectX,
   DXUtil,
   DXEffects,
 {$ENDIF}
   DFX,
-  digifx,
+  SoAOS.Graphics.Types,
   LogFile;
 
 type
@@ -87,7 +88,7 @@ type
   TFacing = ( fNW, fNN, fNE, fEE, fSE, fSS, fSW, fWW );
 
   TSlot = ( slLeg1, slBoot, slLeg2, slChest1, slChest2, slArm, slBelt, slChest3,
-    slGauntlet, slOuter, slHelmet, slWeapon, slShield, slMisc1, slMisc2, slMisc3 );
+    slGauntlet, slOuter, slHelmet, slWeapon, slShield, sltabar, slMisc1, slMisc2, slMisc3 );
 
   TSlotAllowed = set of TSlot;
 
@@ -100,12 +101,12 @@ type
   TStringIniFile = class( TCustomIniFile )
   private
     FSections : TStringList;
-    FData : string;
+    FData : AnsiString;
     function AddSection( const Section : string ) : TStrings;
     procedure LoadValues;
   public
     FileName : string;
-    constructor Create( const Data : string );
+    constructor Create( const Data : AnsiString );
     destructor Destroy; override;
     procedure Clear;
     procedure DeleteKey( const Section, Ident : string ); override;
@@ -118,7 +119,7 @@ type
     procedure SetStrings( List : TStrings );
     procedure UpdateFile; override;
     procedure WriteString( const Section, Ident, Value : string ); override;
-    property Data : string read FData;
+    property Data : AnsiString read FData;
   end;
 
   TResource = class( TAniResource )
@@ -128,8 +129,8 @@ type
     Lights : array[ 1..8 ] of TLightSource;
     LightCount : integer;
     FReload : boolean;
-    procedure LoadAction( INI : TStringIniFile; const Action : string );
-    procedure LoadScript( const S, Name : string; Multiplier : Word );
+    procedure LoadAction( INI : TStringIniFile; const Action : AnsiString );
+    procedure LoadScript( const S, Name : AnsiString; Multiplier : Word );
     procedure SetReload( Value : boolean ); virtual;
     function GetFrameCount : integer;
   public
@@ -138,7 +139,6 @@ type
     FrameHeight : Integer;
     FrameMultiplier : Integer;
     SpecialEffect : TAniSpecialEffect;
-    TransparentColor : TColor;
     Radius : Integer;
     CenterX : Integer;
     CenterY : Integer;
@@ -154,10 +154,10 @@ type
     ShadowColor : TColor;
     RLE : TRLESprite;
     OnDemand : boolean;
-    Filename : string;
+    Filename : String;
     procedure EnumLightSource( Figure : TAniFigure; Index, X, Y, Z : longint; Intensity : double; Radius : integer ); override;
     procedure LoadData( INI : TStringINIFile ); virtual;
-    procedure Draw( Canvas : TCanvas; X, Y : Integer; Frame : Word ); override;
+//    procedure Draw( Canvas : TCanvas; X, Y : Integer; Frame : Word ); override;
     procedure FreeResources; override;
     procedure Render( Figure : TAniFigure ); override;
     procedure RenderLocked( Figure : TAniFigure; Bits : PBITPLANE ); virtual;
@@ -202,14 +202,14 @@ type
   public
     Defaults : TStringList;
     Layered : boolean;
-    NakedName : string;
-    HeadName : string;
+    NakedName : AnsiString;
+    HeadName : AnsiString;
     NakedResource : TLayerResource;
     HeadResource : TLayerResource;
     UseCastAnimation : Boolean;
     UseDefaultPants : ^TLayerResource;
     Female : boolean;
-    Equipment : array[ slLeg1..slMisc3 ] of string;
+    Equipment : array[ slLeg1..slMisc3 ] of AnsiString;
     constructor Create;
     destructor Destroy; override;
     procedure Render( Figure : TAniFigure ); override;
@@ -232,7 +232,7 @@ type
 
   TStaticResource = class( TResource )
   private
-    Data : string;
+    Data : AnsiString;
 {$IFDEF DirectX}
     function GetImage( ImageIndex : Integer ) : IDirectDrawSurface;
     procedure GetImage1( ImageIndex : Integer; Surface : IDirectDrawSurface; W : integer );
@@ -289,8 +289,8 @@ var
   TitlesDB : string;
 
 
-function Parse( const S : string; Index : integer; ParseChar : Char ) : string;
-function GetFile( const FileName : string; var BM : TBitmap; var INI : TStringIniFile; var FrameCount : Integer ) : Boolean;
+function Parse( const S : String; Index : integer; ParseChar : Char ) : string;
+//function GetFile( const FileName : string; var BM : TBitmap; var INI : TStringIniFile; var FrameCount : Integer ) : Boolean;
 function LoadResource( const Filename : string ) : TResource; overload;
 function LoadResource( const Filename : string; OnDemand : boolean ) : TResource; overload;
 function LoadArtResource( const ResourceFile : string ) : TResource; overload;
@@ -304,7 +304,7 @@ uses
   Engine,
   Parts;
 
-function Parse( const S : string; Index : integer; ParseChar : Char ) : string;
+function Parse( const S : String; Index : integer; ParseChar : Char ) : string;
 var
   i, j, k : integer;
 begin
@@ -359,7 +359,7 @@ begin
 {$ENDIF}
   try
 
-    if not FileExists( cFile ) then
+    if not TFile.Exists( cFile ) then
     begin
       exit;
     end;
@@ -400,18 +400,18 @@ end;
 function LoadResource( const Filename : string; OnDemand : boolean ) : TResource;
 var
   POXFile : string;
-  GIFDate, POXDate : TDateTime;
+//  GIFDate, POXDate : TDateTime;
   INI : TStringINIFile;
-  FrameCount : integer;
+//  FrameCount : integer;
   Stream : TMemoryStream;
-  BM : TBitmap;
-  S : string;
+//  BM : TBitmap;
+  S : AnsiString;
   TextOnly : boolean;
   L : longword;
-  M : array[ 1..2 ] of Char;
+  M : array[ 1..2 ] of AnsiChar;
   EOB, BB : word;
-  C : TColor;
-  Convert : boolean;
+//  C : TColor;
+//  Convert : boolean;
 const
   FailName : string = 'Resource.LoadResource';
 begin
@@ -422,236 +422,112 @@ begin
     Log.LogEntry( FailName );
 {$ENDIF}
   try
-
     EOB := $4242;
     POXFile := ChangeFileExt( Filename, '.pox' );
-    if GIFToPOX then
-    begin
-      GIFDate := GetFileDate( Filename );
-      POXDate := GetFileDate( POXFile );
-      if ( GIFDate = -1 ) and ( POXDate = -1 ) then
-        exit;
-      Convert := GIFDate > POXDate;
-    end
-    else
-    begin
-      if not FileExists( POXFile ) then
-        exit;
-      Convert := false;
-    end;
-
-    if Convert then
-    begin
-      Log.Log( '  Converting file ' + Filename + '...' );
-
-      if GetFile( Filename, BM, INI, FrameCount ) then
-      begin
-        try
-          Stream := TMemoryStream.create;
-//        Stream:=TFileStream.create(POXFile,fmCreate or fmShareExclusive);
-          try
-            Stream.LoadFromFile( POXFile );
-            TextOnly := false;
-            Stream.write( #80#79#88#65, 4 ); //POX vA - Proprietary Object eXtension
-            S := lowercase( trim( INI.ReadString( 'Header', 'GameClass', '' ) ) );
-            if S = 'staticobject' then
-            begin
-              Stream.write( #83#84, 2 ); //fmt ST
-              result := TStaticResource.Create;
-            end
-            else if ( S = 'character' ) or ( S = 'charactersprite' ) then
-            begin
-              S := lowercase( trim( INI.ReadString( 'Header', 'LayeredParts', '' ) ) );
-              if ( S = 'yes' ) or ( S = 'base' ) then
-              begin
-                Stream.write( #76#76, 2 ); //fmt LL
-                result := TLayerResource.Create;
-                TLayerResource( result ).LinkPath := Filename;
-              end
-              else
-              begin
-                if INI.SectionExists( 'Layers' ) then
-                begin
-                  Stream.write( #76#67, 2 ); //fmt LC
-                  result := TCharacterResource.Create;
-                  TCharacterResource( result ).Layered := true;
-                  TextOnly := true;
-                end
-                else
-                begin
-                  Stream.write( #67#67, 2 ); //fmt CC
-                  result := TCharacterResource.Create;
-                  TCharacterResource( result ).Layered := false;
-                end;
-              end;
-            end
-            else if S = 'doorsprite' then
-            begin
-              Stream.write( #68#83, 2 ); //fmt DS
-              result := TDoorResource.Create;
-            end
-            else if S = 'multiimagetile' then
-            begin
-              Stream.write( #84#84, 2 ); //fmt TT
-              result := TTileResource.Create;
-            end
-            else if S = 'projectile' then
-            begin
-              Stream.write( #80#82, 2 ); //fmt PR
-              result := TProjectileResource.Create
-            end
-            else if S = 'spellcast' then
-            begin
-              Stream.write( #83#67, 2 ); //fmt SC
-              result := TCastResource.Create
-            end
-            else if S = 'inventoryitem' then
-            begin
-              Stream.write( #73#73, 2 ); //fmt II
-              result := TInventoryResource.Create
-            end
-            else if S = 'spriteobject' then
-            begin
-              Stream.write( #83#80, 2 ); //fmt SP
-              result := TResource.Create;
-            end;
-            result.LoadData( INI );
-
-            Stream.write( #13#10, 2 );
-            S := INI.Data;
-            L := Length( S );
-            if TextOnly then
-            begin
-              Stream.write( S[ 1 ], L );
-            end
-            else
-            begin
-              Stream.write( L, sizeof( L ) );
-              Stream.write( S[ 1 ], L );
-              Stream.write( EOB, sizeof( EOB ) );
-              C := StrToInt( lowercase( trim( INI.ReadString( 'Header', 'TransparentColor', '16776960' ) ) ) );
-              result.RLE := TRLESprite.create;
-              result.RLE.LoadFromBitmap( BM, result.FrameWidth, result.FrameHeight, C );
-              result.RLE.SaveToStream( Stream );
-              Stream.write( EOB, sizeof( EOB ) );
-            end;
-            result.Loaded := true;
-            result.Reload := true;
-          finally
-            Stream.free;
-          end;
-        finally
-          INI.free;
-          BM.free;
-        end;
-      end;
-    end
-    else
-    begin
+    if not TFile.Exists( POXFile ) then
+      exit;
     //Load POX
-      Stream := TMemoryStream.create;
-//    Stream:=TFileStream.create(POXFile,fmOpenRead or fmShareCompat);
-      try
-        Stream.LoadFromFile( POXFile );
-        TextOnly := false;
+    Stream := TMemoryStream.create;
+    try
+      Stream.LoadFromFile( POXFile );
+      TextOnly := false;
+      Stream.Read( L, sizeof( L ) );
+      if ( L <> $41584F50 ) then
+        exit;
+      Stream.Read( M, sizeof( M ) );
+      Stream.Read( BB, sizeof( BB ) ); //CRLF
+      if ( M = #83#84 ) then
+      begin //ST
+        result := TStaticResource.Create;
         Stream.Read( L, sizeof( L ) );
-        if ( L <> $41584F50 ) then
-          exit;
-        Stream.Read( M, sizeof( M ) );
-        Stream.Read( BB, sizeof( BB ) ); //CRLF
-        if ( M = #83#84 ) then
-        begin //ST
-          result := TStaticResource.Create;
-          Stream.Read( L, sizeof( L ) );
-        end
-        else if ( M = #67#67 ) then
-        begin //CC
-          result := TCharacterResource.Create;
-          Stream.Read( L, sizeof( L ) );
-          TCharacterResource( result ).Layered := false;
-        end
-        else if ( M = #76#67 ) then
-        begin //LC
-          result := TCharacterResource.Create;
-          L := Stream.Size - Stream.Position;
-          TCharacterResource( result ).Layered := true;
-          TextOnly := true;
-        end
-        else if ( M = #68#83 ) then
-        begin //DS
-          result := TDoorResource.Create;
-          Stream.Read( L, sizeof( L ) );
-        end
-        else if ( M = #84#84 ) then
-        begin //TT
-          result := TTileResource.Create;
-          Stream.Read( L, sizeof( L ) );
-        end
-        else if ( M = #80#82 ) then
-        begin //PR
-          result := TProjectileResource.Create;
-          Stream.Read( L, sizeof( L ) );
-        end
-        else if ( M = #83#67 ) then
-        begin //SC
-          result := TCastResource.Create;
-          Stream.Read( L, sizeof( L ) );
-        end
-        else if ( M = #76#76 ) then
-        begin //LL
-          result := TLayerResource.Create;
-          TLayerResource( result ).LinkPath := Filename;
-          Stream.Read( L, sizeof( L ) );
-        end
-        else if ( M = #73#73 ) then
-        begin //II
-          result := TInventoryResource.Create;
-          Stream.Read( L, sizeof( L ) );
-        end
-        else if ( M = #83#80 ) then
-        begin //SP
-          result := TResource.Create;
-          Stream.Read( L, sizeof( L ) );
-        end
-        else
-          exit;
-        SetLength( S, L );
-        Stream.Read( S[ 1 ], L );
-        INI := TStringINIFile.Create( S );
-        result.LoadData( INI );
-        INI.free;
+      end
+      else if ( M = #67#67 ) then
+      begin //CC
+        result := TCharacterResource.Create;
+        Stream.Read( L, sizeof( L ) );
+        TCharacterResource( result ).Layered := false;
+      end
+      else if ( M = #76#67 ) then
+      begin //LC
+        result := TCharacterResource.Create;
+        L := Stream.Size - Stream.Position;
+        TCharacterResource( result ).Layered := true;
+        TextOnly := true;
+      end
+      else if ( M = #68#83 ) then
+      begin //DS
+        result := TDoorResource.Create;
+        Stream.Read( L, sizeof( L ) );
+      end
+      else if ( M = #84#84 ) then
+      begin //TT
+        result := TTileResource.Create;
+        Stream.Read( L, sizeof( L ) );
+      end
+      else if ( M = #80#82 ) then
+      begin //PR
+        result := TProjectileResource.Create;
+        Stream.Read( L, sizeof( L ) );
+      end
+      else if ( M = #83#67 ) then
+      begin //SC
+        result := TCastResource.Create;
+        Stream.Read( L, sizeof( L ) );
+      end
+      else if ( M = #76#76 ) then
+      begin //LL
+        result := TLayerResource.Create;
+        TLayerResource( result ).LinkPath := Filename;
+        Stream.Read( L, sizeof( L ) );
+      end
+      else if ( M = #73#73 ) then
+      begin //II
+        result := TInventoryResource.Create;
+        Stream.Read( L, sizeof( L ) );
+      end
+      else if ( M = #83#80 ) then
+      begin //SP
+        result := TResource.Create;
+        Stream.Read( L, sizeof( L ) );
+      end
+      else
+        exit;
+      SetLength( S, L );
+      Stream.Read( S[ 1 ], L );
+      INI := TStringINIFile.Create( S );
+      result.LoadData( INI );
+      INI.free;
 
-        if TextOnly then
+      if TextOnly then
+      begin
+        result.Loaded := true;
+        result.Reload := true;
+      end
+      else if OnDemand then
+      begin
+        result.OnDemand := true;
+        result.Loaded := true;
+        result.Reload := true;
+      end
+      else
+      begin
+        Stream.Read( BB, sizeof( BB ) );
+        if BB = EOB then
         begin
-          result.Loaded := true;
-          result.Reload := true;
-        end
-        else if OnDemand then
-        begin
-          result.OnDemand := true;
+          result.RLE := TRLESprite.create;
+          result.RLE.LoadFromStream( Stream );
           result.Loaded := true;
           result.Reload := true;
         end
         else
         begin
-          Stream.Read( BB, sizeof( BB ) );
-          if BB = EOB then
-          begin
-            result.RLE := TRLESprite.create;
-            result.RLE.LoadFromStream( Stream );
-            result.Loaded := true;
-            result.Reload := true;
-          end
-          else
-          begin
-            result.free;
-            result := nil;
-            exit;
-          end;
+          result.free;
+          result := nil;
+          exit;
         end;
-      finally
-        Stream.free;
       end;
+    finally
+      Stream.free;
     end;
 
   except
@@ -662,13 +538,13 @@ end;
 
 procedure LoadArray( S : string; var A : TDynamicWordArray );
 var
-  C : string;
+  C : AnsiString;
   i : Integer;
 begin
   i := 0;
   while True do
   begin
-    C := LowerCase( Parse( S, i, ',' ) );
+    C := AnsiString( AnsiLowerCase( Parse( S, i, ',' ) ) );
     if C = '' then
     begin
       Break;
@@ -682,47 +558,9 @@ begin
   end;
 end;
 
-//This function was for development and is obsololete
-
-function GetFile( const FileName : string; var BM : TBitmap; var INI : TStringIniFile; var FrameCount : Integer ) : Boolean;
-{var
-  GIF: TGIF;
-  Comments: string;
-  S: string;  }
-begin
-  Result := False;
-
-{try
-
-  S := FileName;
-  INI := nil;
-  BM := nil;
-  if FileExists(S) then begin
-    GIF := TGIF.Create;
-    try
-      GIF.GifConvert(S);
-      BM := GIF.Render(RenderWidth);
-      FrameCount := GIF.Frames;
-      Comments := GIF.Comments;
-      INI := TStringIniFile.Create(Comments);
-      Result := True;
-    except
-      Log.Log('  *** Error: Could not process file.');
-    end;
-    GIF.Free;
-  end
-  else begin
-    Log.Log('  *** Error: File missing.');
-  end;
-
-except
-  on E: Exception do Log.log(FailName,E.Message,[]);
-end; }
-end;
-
 { TResource }
 
-procedure TResource.LoadScript( const S, Name : string; Multiplier : Word );
+procedure TResource.LoadScript( const S, Name : AnsiString; Multiplier : Word );
 var
   NewScript : TScript;
   i, j, k, L : Integer;
@@ -735,7 +573,6 @@ begin
     Log.LogEntry( FailName );
 {$ENDIF}
   try
-
     NewScript := TScript.Create;
     NewScript.Multiplier := Multiplier;
     i := 0;
@@ -800,9 +637,9 @@ begin
   end;
 end;
 
-procedure TResource.LoadAction( INI : TStringIniFile; const Action : string );
+procedure TResource.LoadAction( INI : TStringIniFile; const Action : AnsiString );
 var
-  S0, S1, S2, S3, S4, S5, S6, S7, S8 : string;
+  S0, S1, S2, S3, S4, S5, S6, S7, S8 : AnsiString;
   Group : string;
   Multiplier : Word;
 const
@@ -816,15 +653,15 @@ begin
 
     Group := 'Action ' + Action;
     Multiplier := INI.ReadInteger( Group, 'FrameMultiplier', FrameMultiplier );
-    S0 := lowercase( INI.ReadString( Group, 'Frames', '' ) );
-    S1 := lowercase( INI.ReadString( Group, 'SSFrames', '' ) );
-    S2 := lowercase( INI.ReadString( Group, 'SEFrames', '' ) );
-    S3 := lowercase( INI.ReadString( Group, 'EEFrames', '' ) );
-    S4 := lowercase( INI.ReadString( Group, 'NEFrames', '' ) );
-    S5 := lowercase( INI.ReadString( Group, 'NNFrames', '' ) );
-    S6 := lowercase( INI.ReadString( Group, 'NWFrames', '' ) );
-    S7 := lowercase( INI.ReadString( Group, 'WWFrames', '' ) );
-    S8 := lowercase( INI.ReadString( Group, 'SWFrames', '' ) );
+    S0 := AnsiString( AnsiLowerCase( INI.ReadString( Group, 'Frames', '' ) ) );
+    S1 := AnsiString( AnsiLowerCase( INI.ReadString( Group, 'SSFrames', '' ) ) );
+    S2 := AnsiString( AnsiLowerCase( INI.ReadString( Group, 'SEFrames', '' ) ) );
+    S3 := AnsiString( AnsiLowerCase( INI.ReadString( Group, 'EEFrames', '' ) ) );
+    S4 := AnsiString( AnsiLowerCase( INI.ReadString( Group, 'NEFrames', '' ) ) );
+    S5 := AnsiString( AnsiLowerCase( INI.ReadString( Group, 'NNFrames', '' ) ) );
+    S6 := AnsiString( AnsiLowerCase( INI.ReadString( Group, 'NWFrames', '' ) ) );
+    S7 := AnsiString( AnsiLowerCase( INI.ReadString( Group, 'WWFrames', '' ) ) );
+    S8 := AnsiString( AnsiLowerCase( INI.ReadString( Group, 'SWFrames', '' ) ) );
     if S0 <> '' then
       LoadScript( S0, Action, Multiplier );
     if S1 <> '' then
@@ -887,7 +724,6 @@ begin
       UseLighting := True;
       Vertical := ( S = 'vert' );
     end;
-    TransparentColor := clFuchsia;
     S := LowerCase( INI.ReadString( 'Header', 'Highlightable', '' ) );
     if ( S = 'yes' ) then
       Highlightable := True
@@ -933,12 +769,12 @@ begin
     Actions.CommaText := S;
     for i := 0 to Actions.Count - 1 do
     begin
-      LoadAction( INI, Actions.Strings[ i ] );
+      LoadAction( INI, AnsiString( Actions.Strings[ i ] ) );
     end;
     Actions.Free;
 
     Picture := TBitPlane.Create( FrameWidth, FrameHeight );
-    Picture.KeyColor := TransparentColor;
+    Picture.KeyColor := cTransparent;
 
   except
     on E : Exception do
@@ -946,10 +782,10 @@ begin
   end;
 end;
 
-procedure TResource.Draw( Canvas : TCanvas; X, Y : Integer; Frame : Word );
-begin
-
-end;
+//procedure TResource.Draw( Canvas : TCanvas; X, Y : Integer; Frame : Word );
+//begin
+//
+//end;
 
 procedure TResource.EnumLightSource( Figure : TAniFigure; Index, X, Y, Z : longint; Intensity : double; Radius : integer );
 begin
@@ -1055,7 +891,7 @@ begin
     Stream.Read( M, sizeof( M ) );
     Stream.Read( BB, sizeof( BB ) ); //CRLF
     Stream.Read( L, sizeof( L ) );
-    Stream.Seek( L, soFromCurrent );
+    Stream.Position := Stream.Position + L; // Stream.Seek( L, soFromCurrent );
     Stream.Read( BB, sizeof( BB ) );
     if BB = EOB then
     begin
@@ -1283,29 +1119,30 @@ begin
     FContactFrame := INI.ReadInteger( 'Action Attack1', 'TriggerFrame', 1 );
     FReleaseFrame := INI.ReadInteger( 'Action BowAttack', 'TriggerFrame', 1 );
     FCastFrame := INI.ReadInteger( 'Action Cast', 'TriggerFrame', 1 );
-    Equipment[ slLeg1 ] := INI.ReadString( 'Layers', 'leg1', '' );
-    Equipment[ slBoot ] := INI.ReadString( 'Layers', 'boot', '' );
-    Equipment[ slLeg2 ] := INI.ReadString( 'Layers', 'leg2', '' );
-    Equipment[ slChest1 ] := INI.ReadString( 'Layers', 'chest1', '' );
-    Equipment[ slChest2 ] := INI.ReadString( 'Layers', 'chest2', '' );
-    Equipment[ slArm ] := INI.ReadString( 'Layers', 'arm', '' );
-    Equipment[ slBelt ] := INI.ReadString( 'Layers', 'belt', '' );
-    Equipment[ slChest3 ] := INI.ReadString( 'Layers', 'chest3', '' );
-    Equipment[ slGauntlet ] := INI.ReadString( 'Layers', 'gauntlet', '' );
-    Equipment[ slOuter ] := INI.ReadString( 'Layers', 'outer', '' );
-    Equipment[ slHelmet ] := INI.ReadString( 'Layers', 'helmet', '' );
-    Equipment[ slWeapon ] := INI.ReadString( 'Layers', 'weapon', '' );
-    Equipment[ slShield ] := INI.ReadString( 'Layers', 'shield', '' );
-    Equipment[ slMisc1 ] := INI.ReadString( 'Layers', 'misc1', '' );
-    Equipment[ slMisc2 ] := INI.ReadString( 'Layers', 'misc2', '' );
-    Equipment[ slMisc3 ] := INI.ReadString( 'Layers', 'misc3', '' );
+    Equipment[ slLeg1 ] := AnsiString( INI.ReadString( 'Layers', 'leg1', '' ) );
+    Equipment[ slBoot ] := AnsiString( INI.ReadString( 'Layers', 'boot', '' ) );
+    Equipment[ slLeg2 ] := AnsiString( INI.ReadString( 'Layers', 'leg2', '' ) );
+    Equipment[ slChest1 ] := AnsiString( INI.ReadString( 'Layers', 'chest1', '' ) );
+    Equipment[ slChest2 ] := AnsiString( INI.ReadString( 'Layers', 'chest2', '' ) );
+    Equipment[ slArm ] := AnsiString( INI.ReadString( 'Layers', 'arm', '' ) );
+    Equipment[ slBelt ] := AnsiString( INI.ReadString( 'Layers', 'belt', '' ) );
+    Equipment[ slChest3 ] := AnsiString( INI.ReadString( 'Layers', 'chest3', '' ) );
+    Equipment[ slGauntlet ] := AnsiString( INI.ReadString( 'Layers', 'gauntlet', '' ) );
+    Equipment[ slOuter ] := AnsiString( INI.ReadString( 'Layers', 'outer', '' ) );
+    Equipment[ slHelmet ] := AnsiString( INI.ReadString( 'Layers', 'helmet', '' ) );
+    Equipment[ slWeapon ] := AnsiString( INI.ReadString( 'Layers', 'weapon', '' ) );
+    Equipment[ slShield ] := AnsiString( INI.ReadString( 'Layers', 'shield', '' ) );
+Equipment[ sltabar ] := AnsiString( INI.ReadString( 'Layers', 'tabar', '' ) );
+    Equipment[ slMisc1 ] := AnsiString( INI.ReadString( 'Layers', 'misc1', '' ) );
+    Equipment[ slMisc2 ] := AnsiString( INI.ReadString( 'Layers', 'misc2', '' ) );
+    Equipment[ slMisc3 ] := AnsiString( INI.ReadString( 'Layers', 'misc3', '' ) );
 
     FAttackVariations := 1;
     while INI.SectionExists( 'Action Attack' + IntToStr( FAttackVariations ) ) do
       inc( FAttackVariations );
     dec( FAttackVariations );
 
-    NakedName := INI.ReadString( 'Layers', 'naked', '' );
+    NakedName := AnsiString( INI.ReadString( 'Layers', 'naked', '' ) );
     if NakedName <> '' then
     begin
       NakedResource := PartManager.GetLayerResource( NakedName );
@@ -1320,7 +1157,7 @@ begin
       UseDefaultPants := nil;
     Female := Pos( 'female', lowercase( NakedName ) ) > 0;
 
-    HeadName := INI.ReadString( 'Layers', 'head', '' );
+    HeadName := AnsiString( INI.ReadString( 'Layers', 'head', '' ) );
     if HeadName <> '' then
     begin
       HeadResource := PartManager.GetLayerResource( HeadName );
@@ -1486,6 +1323,14 @@ var
         if assigned( TLayerResource( TCharacter( Figure ).FEquipment[ slWeapon ].Resource ).LinkedResource ) then
           TLayerResource( TCharacter( Figure ).FEquipment[ slWeapon ].Resource ).LinkedResource.RLE.DrawColorize( i, 0, 0, MyBits, RFactor, GFactor, BFactor, 100, 0 );
       end;
+      if assigned( TCharacter( Figure ).FEquipment[ sltabar ] ) and
+        assigned( TCharacter( Figure ).FEquipment[ sltabar ].Resource ) then
+      begin
+        if TLayerResource( TCharacter( Figure ).FEquipment[ sltabar ].Resource ).BackLayer[ i ] then
+          TResource( TCharacter( Figure ).FEquipment[ sltabar ].Resource ).RLE.DrawColorize( i, 0, 0, MyBits, RFactor, GFactor, BFactor, 100, 0 );
+        if assigned( TLayerResource( TCharacter( Figure ).FEquipment[ sltabar ].Resource ).LinkedResource ) then
+          TLayerResource( TCharacter( Figure ).FEquipment[ sltabar ].Resource ).LinkedResource.RLE.DrawColorize( i, 0, 0, MyBits, RFactor, GFactor, BFactor, 100, 0 );
+      end;
       if assigned( TCharacter( Figure ).FEquipment[ slHelmet ] ) and
         assigned( TCharacter( Figure ).FEquipment[ slHelmet ].Resource ) then
       begin
@@ -1583,6 +1428,15 @@ var
         end;
       end;
       p := TCharacter( Figure ).FEquipment[ slHelmet ];
+      if assigned( p ) and assigned( TItem( p ).Resource ) then
+      begin
+        P := TItem( p ).Resource;
+        if TLayerResource( p ).BackLayer[ i ] then
+          TResource( p ).RLE.DrawColorize( i, 0, 0, MyBits, RFactor, GFactor, BFactor, 100, 0 );
+        if assigned( TLayerResource( p ).LinkedResource ) then
+          TLayerResource( p ).LinkedResource.RLE.DrawColorize( i, 0, 0, MyBits, RFactor, GFactor, BFactor, 100, 0 );
+      end;
+      p := TCharacter( Figure ).FEquipment[ sltabar ];
       if assigned( p ) and assigned( TItem( p ).Resource ) then
       begin
         P := TItem( p ).Resource;
@@ -1731,7 +1585,11 @@ var
         assigned( TCharacter( Figure ).FEquipment[ slOuter ].Resource ) and
         not TLayerResource( TCharacter( Figure ).FEquipment[ slOuter ].Resource ).BackLayer[ i ] then
         TResource( TCharacter( Figure ).FEquipment[ slOuter ].Resource ).RLE.DrawColorize( i, 0, 0, MyBits, RFactor, GFactor, BFactor, 100, 0 );
-
+      if assigned( TCharacter( Figure ).FEquipment[ sltabar ] ) and
+        assigned( TCharacter( Figure ).FEquipment[ sltabar ].Resource ) and
+        not TLayerResource( TCharacter( Figure ).FEquipment[ sltabar ].Resource ).BackLayer[ i ] then
+        TResource( TCharacter( Figure ).FEquipment[ sltabar ].Resource ).RLE.DrawColorize( i, 0, 0, MyBits, RFactor, GFactor, BFactor, 100, 0 );
+      
       if assigned( HeadResource ) then
         HeadResource.RLE.DrawColorize( i, 0, 0, MyBits, RFactor, GFactor, BFactor, 100, 0 );
 
@@ -1775,6 +1633,12 @@ begin
               if assigned( TLayerResource( Equipment[ slOuter ].Resource ).LinkedResource ) then
                 TLayerResource( Equipment[ slOuter ].Resource ).LinkedResource.RLE.DrawMono( ShadowFrame, 0, 0, Picture.Bits, ShadowColor );
             end;
+                        if assigned( Equipment[ sltabar ] ) and assigned( Equipment[ sltabar ].Resource ) then
+            begin
+              TResource( Equipment[ sltabar ].Resource ).RLE.DrawMono( ShadowFrame, 0, 0, Picture.Bits, ShadowColor );
+              if assigned( TLayerResource( Equipment[ sltabar ].Resource ).LinkedResource ) then
+                TLayerResource( Equipment[ sltabar ].Resource ).LinkedResource.RLE.DrawMono( ShadowFrame, 0, 0, Picture.Bits, ShadowColor );
+            end;
           end;
           Picture.Bits.BaseX := Figure.CenterX - Bits.BaseX;
           Picture.Bits.BaseY := Figure.CenterY + Figure.Z - Bits.BaseY;
@@ -1798,6 +1662,12 @@ begin
               if assigned( TLayerResource( Equipment[ slOuter ].Resource ).LinkedResource ) then
                 TLayerResource( Equipment[ slOuter ].Resource ).LinkedResource.RLE.DrawMono( ShadowFrame, 0, 0, Picture.Bits, ShadowColor );
             end;
+            if assigned( Equipment[ sltabar ] ) and assigned( Equipment[ sltabar ].Resource ) then
+            begin
+              TResource( Equipment[ sltabar ].Resource ).RLE.DrawMono( ShadowFrame, 0, 0, Picture.Bits, ShadowColor );
+              if assigned( TLayerResource( Equipment[ sltabar ].Resource ).LinkedResource ) then
+                TLayerResource( Equipment[ sltabar ].Resource ).LinkedResource.RLE.DrawMono( ShadowFrame, 0, 0, Picture.Bits, ShadowColor );
+            end;
           end;
           Picture.Bits.BaseX := Figure.CenterX - Bits.BaseX;
           Picture.Bits.BaseY := Figure.CenterY + Figure.Z - Bits.BaseY;
@@ -1820,6 +1690,12 @@ begin
               TResource( Equipment[ slOuter ].Resource ).RLE.DrawMono( ShadowFrame, 0, 0, Picture.Bits, ShadowColor );
               if assigned( TLayerResource( Equipment[ slOuter ].Resource ).LinkedResource ) then
                 TLayerResource( Equipment[ slOuter ].Resource ).LinkedResource.RLE.DrawMono( ShadowFrame, 0, 0, Picture.Bits, ShadowColor );
+            end;
+            if assigned( Equipment[ sltabar ] ) and assigned( Equipment[ sltabar ].Resource ) then
+            begin
+              TResource( Equipment[ sltabar ].Resource ).RLE.DrawMono( ShadowFrame, 0, 0, Picture.Bits, ShadowColor );
+              if assigned( TLayerResource( Equipment[ sltabar ].Resource ).LinkedResource ) then
+                TLayerResource( Equipment[ sltabar ].Resource ).LinkedResource.RLE.DrawMono( ShadowFrame, 0, 0, Picture.Bits, ShadowColor );
             end;
           end;
           Picture.Bits.BaseX := Figure.CenterX - Bits.BaseX;
@@ -1876,6 +1752,12 @@ begin
                   TResource( Equipment[ slOuter ].Resource ).RLE.DrawMono( ShadowFrame, 0, 0, Picture.Bits, ShadowColor );
                   if assigned( TLayerResource( Equipment[ slOuter ].Resource ).LinkedResource ) then
                     TLayerResource( Equipment[ slOuter ].Resource ).LinkedResource.RLE.DrawMono( ShadowFrame, 0, 0, Picture.Bits, ShadowColor );
+                end;
+                if assigned( Equipment[ sltabar ] ) and assigned( Equipment[ sltabar ].Resource ) then
+                begin
+                  TResource( Equipment[ sltabar ].Resource ).RLE.DrawMono( ShadowFrame, 0, 0, Picture.Bits, ShadowColor );
+                  if assigned( TLayerResource( Equipment[ sltabar ].Resource ).LinkedResource ) then
+                    TLayerResource( Equipment[ sltabar ].Resource ).LinkedResource.RLE.DrawMono( ShadowFrame, 0, 0, Picture.Bits, ShadowColor );
                 end;
               end;
 
@@ -1956,7 +1838,7 @@ end;
 
 { TStringINIFile }
 
-constructor TStringIniFile.Create( const Data : string );
+constructor TStringIniFile.Create( const Data : AnsiString );
 begin
   FSections := TStringList.Create;
   FData := Data;
@@ -2198,7 +2080,6 @@ begin
     FrameWidth := INI.ReadInteger( 'Header', 'ImageWidth', 96 );
     FrameHeight := INI.ReadInteger( 'Header', 'ImageHeight', 86 );
     S := LowerCase( INI.ReadString( 'Header', 'Blend', '' ) );
-    TransparentColor := clFuchsia;
     Radius := INI.ReadInteger( 'Header', 'CollisionRadius', 16 );
     FrameMultiplier := INI.ReadInteger( 'Header', 'FrameMultiplier', 1 );
     CenterX := INI.ReadInteger( 'Header', 'CollisionOffset', FrameWidth div 2 );
@@ -2209,7 +2090,7 @@ begin
     Actions.CommaText := S;
     for i := 0 to Actions.Count - 1 do
     begin
-      LoadAction( INI, Actions.Strings[ i ] );
+      LoadAction( INI, AnsiString( Actions.Strings[ i ] ) );
     end;
     Actions.Free;
 
@@ -2220,7 +2101,7 @@ begin
       Highlightable := False;
 
     Picture := TBitPlane.Create( FrameWidth, FrameHeight );
-    Picture.KeyColor := TransparentColor;
+    Picture.KeyColor := cTransparent;
 
     DrawShadow := false;
     ComplexShadow := false;
@@ -2245,14 +2126,15 @@ var
   ImageIndex : integer;
 {$IFDEF DirectX}
   BM : IDirectDrawSurface;
-  ddck : DDCOLORKEY;
-  BltFx : DDBLTFX;
+  ddck : TDDCOLORKEY;
+  BltFx : TDDBLTFX;
 {$ENDIF}
 {$IFNDEF DirectX}
   BM : TBitmap;
 {$ENDIF}
   W : integer;
   ColorMatch : integer;
+  pr : TRect;
 const
   FailName : string = 'TDoorResource.Define';
 begin
@@ -2272,7 +2154,7 @@ begin
       W := FrameWidth
     else
       W := FrameWidth + 4 - ( FrameWidth mod 4 );
-    BM := DDGetSurface( lpDD, W, FrameHeight, clFuchsia, false, ColorMatch );
+    BM := DDGetSurface( lpDD, W, FrameHeight, cTransparent, false, ColorMatch );
 
     ddck.dwColorSpaceLowValue := ColorMatch;
     ddck.dwColorSpaceHighValue := ddck.dwColorSpaceLowValue;
@@ -2325,7 +2207,10 @@ begin
         end;
       end;
       if ImageIndex > 0 then
-        BM.Blt( Rect( 0, 0, W, FrameHeight ), nil, Rect( 0, 0, W, FrameHeight ), DDBLT_COLORFILL + DDBLT_WAIT, BltFx );
+      begin
+        pr := Rect( 0, 0, W, FrameHeight );
+        BM.Blt( @pr, nil, @pr, DDBLT_COLORFILL + DDBLT_WAIT, @BltFx );
+      end;
       GetImage1( ImageIndex, BM, W );
       inc( Index );
       pItem := Map.DefineItem( Zone, Index, BM, DepthAnchors, CollisionMask, LineOfSightMask, LightPoints, Slope, False, AutoTransparent, Vertical );
@@ -2376,8 +2261,8 @@ var
   ImageIndex : integer;
 {$IFDEF DirectX}
   BM : IDirectDrawSurface;
-  ddck : DDCOLORKEY;
-  BltFx : DDBLTFX;
+  ddck : TDDCOLORKEY;
+  BltFx : TDDBLTFX;
 {$ENDIF}
 {$IFNDEF DirectX}
   BM : TBitmap;
@@ -2386,6 +2271,7 @@ var
   MultiImage : boolean;
   W : integer;
   ColorMatch : integer;
+  pr : TRect;
 const
   FailName : string = 'TStaticResource.Define';
 begin
@@ -2405,7 +2291,7 @@ begin
       W := FrameWidth
     else
       W := FrameWidth + 4 - ( FrameWidth mod 4 );
-    BM := DDGetSurface( lpDD, W, FrameHeight, clFuchsia, false, ColorMatch );
+    BM := DDGetSurface( lpDD, W, FrameHeight, cTransparent, false, ColorMatch );
 
     ddck.dwColorSpaceLowValue := ColorMatch;
     ddck.dwColorSpaceHighValue := ddck.dwColorSpaceLowValue;
@@ -2470,7 +2356,10 @@ begin
         end;
       end;
       if ImageIndex > 0 then
-        BM.Blt( Rect( 0, 0, W, FrameHeight ), nil, Rect( 0, 0, W, FrameHeight ), DDBLT_COLORFILL + DDBLT_WAIT, BltFx );
+      begin
+        pr := Rect( 0, 0, W, FrameHeight );
+        BM.Blt( @pr, nil, @pr, DDBLT_COLORFILL + DDBLT_WAIT, @BltFx );
+      end;
       GetImage1( ImageIndex, BM, W );
       inc( Index );
       Map.DefineItem( Zone, Index, BM, DepthAnchors, CollisionMask, LineOfSightMask, LightPoints, Slope, True, AutoTransparent, Vertical );
@@ -2549,7 +2438,7 @@ begin
       W := FrameWidth
     else
       W := FrameWidth + 4 - ( FrameWidth mod 4 );
-    result := DDGetSurface( lpDD, W, FrameHeight, clFuchsia, false, ColorMatch );
+    result := DDGetSurface( lpDD, W, FrameHeight, cTransparent, false, ColorMatch );
 
     ddsd.dwSize := SizeOf( ddsd );
     if result.Lock( nil, ddsd, DDLOCK_WAIT, 0 ) = DD_OK then
@@ -2659,8 +2548,8 @@ function TTileResource.Define( Map : TAniMap; Zone : byte; Index : word ) : inte
 var
 {$IFDEF DirectX}
   TileBM : IDirectDrawSurface;
-  ddck : DDCOLORKEY;
-  BltFx : DDBLTFX;
+  ddck : TDDCOLORKEY;
+  BltFx : TDDBLTFX;
 {$ENDIF}
 {$IFNDEF DirectX}
   TileBM : TBitmap;
@@ -2668,6 +2557,7 @@ var
   i : Integer;
   W : integer;
   ColorMatch : integer;
+  pr: TRect;
 const
   FailName : string = 'TTileResource.Define';
 begin
@@ -2683,7 +2573,7 @@ begin
       W := FrameWidth
     else
       W := FrameWidth + 4 - ( FrameWidth mod 4 );
-    TileBM := DDGetSurface( lpDD, W, FrameHeight, clFuchsia, false, ColorMatch );
+    TileBM := DDGetSurface( lpDD, W, FrameHeight, cTransparent, false, ColorMatch );
 
     ddck.dwColorSpaceLowValue := ColorMatch;
     ddck.dwColorSpaceHighValue := ddck.dwColorSpaceLowValue;
@@ -2695,7 +2585,10 @@ begin
     for i := 0 to FrameCount - 1 do
     begin
       if i > 0 then
-        TileBM.Blt( Rect( 0, 0, W, FrameHeight ), nil, Rect( 0, 0, W, FrameHeight ), DDBLT_COLORFILL + DDBLT_WAIT, BltFx );
+      begin
+        pr := Rect( 0, 0, W, FrameHeight );
+        TileBM.Blt( @pr, nil, @pr, DDBLT_COLORFILL + DDBLT_WAIT, @BltFx );
+      end;
       GetImage1( i, TileBM, W );
       Map.DefineTile( Zone, Index + i, TileBM );
     end;

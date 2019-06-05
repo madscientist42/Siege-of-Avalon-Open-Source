@@ -59,8 +59,6 @@ unit Award;
 {                                                                              }
 {******************************************************************************}
 
-{$INCLUDE Anigrp30cfg.inc}
-
 interface
 
 uses
@@ -69,28 +67,21 @@ uses
   DXUtil,
   DXEffects,
 {$ENDIF}
-  Windows,
-  Messages,
-  SysUtils,
-  Classes,
-  Graphics,
-  Controls,
-  Forms,
-  Dialogs,
-  ExtCtrls,
+  System.SysUtils,
+  System.Classes,
+  System.Types,
+  Vcl.Controls,
   Character,
-  StdCtrls,
   GameText,
   Display,
   Anigrp30,
   Engine,
   Logfile;
-  
+
 type
   TAward = class( TDisplay )
   private
     //Bitmap stuff
-    BMBack : TBitmap; //The inventory screen bitmap used for loading
     DXBack : IDirectDrawSurface;
     DXBackToGame : IDirectDrawSurface; //Back To Game highlight
     DXLeftGeeble : IDirectDrawSurface;
@@ -115,9 +106,14 @@ type
     procedure Init; override;
     procedure Release; override;
   end;
+
 implementation
+
 uses
+  SoAOS.Types,
+  SoAOS.Graphics.Draw,
   AniDemo;
+
 { TAward }
 
 constructor TAward.Create;
@@ -157,7 +153,8 @@ end; //Destroy
 procedure TAward.Init;
 var
   DXBorder : IDirectDrawSurface;
-  i : integer;
+  i, width, height : integer;
+  pr : TRect;
 const
   FailName : string = 'TAward.init';
 begin
@@ -176,7 +173,7 @@ begin
       txtMessage[ i ] := ExText.GetText( 'Message' + inttostr( i ) );
 
     MouseCursor.Cleanup;
-    BMBack := TBitmap.Create;
+
     PageNumber := 0;
 
   //Get the number of visible titles for this char
@@ -194,56 +191,35 @@ begin
 
     if TitleCount > 15 then
     begin
-      BMBack.LoadFromFile( InterfacePath + 'logPrevious.bmp' );
-      DXPrev := DDGetImage( lpDD, BMBack, rgb( 255, 0, 255 ), False );
-
-      BMBack.LoadFromFile( InterfacePath + 'logPrevious2.bmp' );
-      DXPrev2 := DDGetImage( lpDD, BMBack, rgb( 255, 0, 255 ), False );
-
-      BMBack.LoadFromFile( InterfacePath + 'logNext.bmp' );
-      DXNext := DDGetImage( lpDD, BMBack, rgb( 255, 0, 255 ), False );
-
-      BMBack.LoadFromFile( InterfacePath + 'logNext2.bmp' );
-      DXNext2 := DDGetImage( lpDD, BMBack, rgb( 255, 0, 255 ), False );
+      DXPrev := SoAOS_DX_LoadBMP( InterfacePath + 'logPrevious.bmp', cTransparent );
+      DXPrev2 := SoAOS_DX_LoadBMP( InterfacePath + 'logPrevious2.bmp', cTransparent );
+      DXNext := SoAOS_DX_LoadBMP( InterfacePath + 'logNext.bmp', cTransparent );
+      DXNext2 := SoAOS_DX_LoadBMP( InterfacePath + 'logNext2.bmp', cTransparent );
     end;
-
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, ResWidth, ResHeight ), DDBLTFAST_NOCOLORKEY or DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, ResWidth, ResHeight );
+    lpDDSBack.BltFast( 0, 0, lpDDSFront, @pr, DDBLTFAST_NOCOLORKEY or DDBLTFAST_WAIT );
     MouseCursor.PlotDirty := false;
 
     pText.LoadFontGraphic( 'statistics' ); //load the inventory font graphic in
     pText.LoadTinyFontGraphic;
 
-    BMBack.LoadFromFile( InterfacePath + 'obInvBackToGame.bmp' );
-    DXBackToGame := DDGetImage( lpDD, BMBack, $00FFFF00, False );
-
-    BMBack.LoadFromFile( InterfacePath + 'LogLeftGeeble.bmp' );
-    DXLeftGeeble := DDGetImage( lpDD, BMBack, rgb( 255, 0, 255 ), False );
-    BMBack.LoadFromFile( InterfacePath + 'LogRightGeeble.bmp' );
-    DXRightGeeble := DDGetImage( lpDD, BMBack, rgb( 255, 0, 255 ), False );
-
-
-    BMBack.LoadFromFile( InterfacePath + 'LogScreen.bmp' );
-    DXBack := DDGetImage( lpDD, BMBack, rgb( 255, 0, 255 ), False );
+    DXBackToGame := SoAOS_DX_LoadBMP( InterfacePath + 'obInvBackToGame.bmp', cInvisColor );
+    DXLeftGeeble := SoAOS_DX_LoadBMP( InterfacePath + 'LogLeftGeeble.bmp', cTransparent );
+    DXRightGeeble := SoAOS_DX_LoadBMP( InterfacePath + 'LogRightGeeble.bmp', cTransparent );
+    DXBack := SoAOS_DX_LoadBMP( InterfacePath + 'LogScreen.bmp', cTransparent, width, height );
 
     DrawAlpha( DXBack, Rect( 0, 380, 213, 380 + 81 ), Rect( 0, 0, 213, 81 ), DXLeftGeeble, True, 80 );
     DrawAlpha( DXBack, Rect( 452, 0, 452 + 213, 81 ), Rect( 0, 0, 213, 81 ), DXRightGeeble, True, 80 );
-
-    lpDDSBack.BltFast( 0, 0, DXBack, Rect( 0, 0, BMBack.width, BMBack.Height ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, width, height );
+    lpDDSBack.BltFast( 0, 0, DXBack, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
 
   //Now for the Alpha'ed edges
-    BMBack.LoadFromFile( InterfacePath + 'obInvRightShadow.bmp' );
-    DXBorder := DDGetImage( lpDD, BMBack, $00FFFF00, False );
-    DrawSub( lpDDSBack, Rect( 659, 0, 659 + BMBack.Width, BMBack.Height ), Rect( 0, 0, BMBack.Width, BMBack.Height ), DXBorder, True, 150 );
-
+    DXBorder := SoAOS_DX_LoadBMP( InterfacePath + 'obInvRightShadow.bmp', cInvisColor, width, height );
+    DrawSub( lpDDSBack, Rect( 659, 0, 659 + width, height ), Rect( 0, 0, width, height ), DXBorder, True, 150 );
     DXBorder := nil;
-
-    BMBack.LoadFromFile( InterfacePath + 'obInvBottomShadow.bmp' );
-    DXBorder := DDGetImage( lpDD, BMBack, $00FFFF00, False );
-    DrawSub( lpDDSBack, Rect( 0, 456, BMBack.Width, 456 + BMBack.Height ), Rect( 0, 0, BMBack.Width, BMBack.Height ), DXBorder, True, 150 );
-
+    DXBorder := SoAOS_DX_LoadBMP( InterfacePath + 'obInvBottomShadow.bmp', cInvisColor, width, height );
+    DrawSub( lpDDSBack, Rect( 0, 456, width, 456 + height ), Rect( 0, 0, width, height ), DXBorder, True, 150 );
     DXBorder := nil; //release DXBorder
-
-    BMBack.Free;
 
     DXLeftGeeble := nil;
     DXRightGeeble := nil;
@@ -252,16 +228,15 @@ begin
 
     if TitleCount > 15 then
     begin
-      lpDDSBack.BltFast( 400, 424, DXPrev, Rect( 0, 0, 86, 29 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
-      lpDDSBack.BltFast( 500, 424, DXNext, Rect( 0, 0, 62, 27 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+      pr := Rect( 0, 0, 86, 29 );
+      lpDDSBack.BltFast( 400, 424, DXPrev, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+      pr := Rect( 0, 0, 62, 27 );
+      lpDDSBack.BltFast( 500, 424, DXNext, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
     end;
-
 
     ShowText( PageNumber );
 
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
+    SoAOS_DX_BltFront;
   except
     on E : Exception do
       Log.log( FailName + E.Message );
@@ -272,6 +247,7 @@ end; //Init
 procedure TAward.MouseDown( Sender : TAniview; Button : TMouseButton; Shift : TShiftState; X, Y, GridX, GridY : integer );
 var
   i : integer;
+  pr : TRect;
 const
   FailName : string = 'TAward.MouseDown';
 begin
@@ -287,7 +263,8 @@ begin
         if PageNumber > 0 then
         begin
           PageNumber := PageNumber - 1;
-          lpDDSBack.BltFast( 0, 40, DXBack, Rect( 0, 40, 650, 415 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+          pr := Rect( 0, 40, 650, 415 );
+          lpDDSBack.BltFast( 0, 40, DXBack, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
           ShowText( PageNumber );
         end;
       end;
@@ -301,7 +278,8 @@ begin
         if PageNumber < i then
         begin
           PageNumber := PageNumber + 1;
-          lpDDSBack.BltFast( 0, 40, DXBack, Rect( 0, 40, 650, 415 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+          pr := Rect( 0, 40, 650, 415 );
+          lpDDSBack.BltFast( 0, 40, DXBack, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
           ShowText( PageNumber );
         end;
       end;
@@ -319,36 +297,41 @@ end; //MouseDown
 procedure TAward.MouseMove( Sender : TAniview; Shift : TShiftState; X, Y, GridX, GridY : integer );
 const
   FailName : string = 'TAward.MouseMove';
+var
+  pr : TRect;
 begin
 {$IFDEF DODEBUG}
   if ( CurrDbgLvl >= DbgLvlSevere ) then
     Log.LogEntry( FailName );
 {$ENDIF}
   try
-
-    lpDDSBack.BltFast( 588, 407, DXBack, Rect( 588, 407, 588 + 77, 407 + 54 ), DDBLTFAST_WAIT );
+    pr := Rect( 588, 407, 588 + 77, 407 + 54 );
+    lpDDSBack.BltFast( 588, 407, DXBack, @pr, DDBLTFAST_WAIT );
     if TitleCount > 15 then
     begin
-      lpDDSBack.BltFast( 400, 424, DXPrev, Rect( 0, 0, 86, 29 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
-      lpDDSBack.BltFast( 500, 424, DXNext, Rect( 0, 0, 62, 27 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+      pr := Rect( 0, 0, 86, 29 );
+      lpDDSBack.BltFast( 400, 424, DXPrev, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+      pr := Rect( 0, 0, 62, 27 );
+      lpDDSBack.BltFast( 500, 424, DXNext, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
       if PtinRect( rect( 400, 424, 400 + 86, 424 + 29 ), point( X, Y ) ) then
       begin //over prev
-        lpDDSBack.BltFast( 400, 424, DXPrev2, Rect( 0, 0, 86, 29 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+        pr := Rect( 0, 0, 86, 29 );
+        lpDDSBack.BltFast( 400, 424, DXPrev2, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
       end;
       if PtinRect( rect( 500, 424, 500 + 86, 424 + 29 ), point( X, Y ) ) then
       begin //over next
-        lpDDSBack.BltFast( 500, 424, DXNext2, Rect( 0, 0, 62, 27 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+        pr := Rect( 0, 0, 62, 27 );
+        lpDDSBack.BltFast( 500, 424, DXNext2, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
       end;
     end;
     if PtinRect( rect( 588, 407, 588 + 77, 412 + 54 ), point( X, Y ) ) then
     begin //over back button
       //plot highlighted back to game
-      lpDDSBack.BltFast( 588, 407, DXBackToGame, Rect( 0, 0, 77, 54 ), DDBLTFAST_WAIT );
+      pr := Rect( 0, 0, 77, 54 );
+      lpDDSBack.BltFast( 588, 407, DXBackToGame, @pr, DDBLTFAST_WAIT );
     end;
 
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
+    SoAOS_DX_BltFront;
   except
     on E : Exception do
       Log.log( FailName + E.Message );

@@ -59,8 +59,6 @@ unit LogScreen;
 {                                                                              }
 {******************************************************************************}
 
-{$INCLUDE Anigrp30cfg.inc}
-
 interface
 
 uses
@@ -69,31 +67,23 @@ uses
   DXUtil,
   DXEffects,
 {$ENDIF}
-  Windows,
-  Messages,
-  SysUtils,
-  Classes,
-  Graphics,
-  Controls,
-  Forms,
-  Dialogs,
-  ExtCtrls,
-  Character,
-  StdCtrls,
+  System.SysUtils,
+  System.IOUtils,
+  System.Types,
+  System.Classes,
+  Vcl.Controls,
   GameText,
   Display,
   Anigrp30,
   Engine,
-  inifiles,
+  System.IniFiles,
   LogFile,
-  resource;
+  Resource;
+
 type
-
-
   TLogScreen = class( TDisplay )
   private
     //Bitmap stuff
-    BMBack : TBitmap; //The inventory screen bitmap used for loading
     DXBack : IDirectDrawSurface;
     DXBackToGame : IDirectDrawSurface; //Back To Game highlight
     DXPrev : IDirectDrawSurface;
@@ -135,8 +125,12 @@ type
   end;
 
 implementation
+
 uses
+  SoAOS.Types,
+  SoAOS.Graphics.Draw,
   AniDemo;
+
 { TLogScreen }
 
 constructor TLogScreen.Create;
@@ -175,7 +169,8 @@ end; //Destroy
 procedure TLogScreen.Init;
 var
   DXBorder : IDirectDrawSurface;
-  i : integer;
+  i, width, height : integer;
+  pr : TRect;
 const
   FailName : string = 'TLogScreen.init';
 begin
@@ -200,7 +195,7 @@ begin
 
     FirstItem[ 0 ] := 0;
 
-    if FileExists( FileName ) then
+    if TFile.Exists( FileName ) then
     begin
       INI := TMeminifile.create( FileName );
       IniFileFound := true;
@@ -237,55 +232,42 @@ begin
     end;
   //end;
 
-
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, ResWidth, ResHeight ), DDBLTFAST_NOCOLORKEY or DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, ResWidth, ResHeight );
+    lpDDSBack.BltFast( 0, 0, lpDDSFront, @pr, DDBLTFAST_NOCOLORKEY or DDBLTFAST_WAIT );
     MouseCursor.PlotDirty := false;
-
-    BMBack := TBitmap.Create;
 
   //ShowText(PageNumber); //to see if we have more than 1 page
 
     if IniFileFound and ( MaxPages > 0 ) then
     begin //(LogInfo.count > 15) then begin
-      BMBack.LoadFromFile( InterfacePath + 'logPrevious.bmp' );
-      DXPrev := DDGetImage( lpDD, BMBack, rgb( 255, 0, 255 ), False );
-
-      BMBack.LoadFromFile( InterfacePath + 'logPrevious2.bmp' );
-      DXPrev2 := DDGetImage( lpDD, BMBack, rgb( 255, 0, 255 ), False );
-
-      BMBack.LoadFromFile( InterfacePath + 'logNext.bmp' );
-      DXNext := DDGetImage( lpDD, BMBack, rgb( 255, 0, 255 ), False );
-
-      BMBack.LoadFromFile( InterfacePath + 'logNext2.bmp' );
-      DXNext2 := DDGetImage( lpDD, BMBack, rgb( 255, 0, 255 ), False );
+      DXPrev := SoAOS_DX_LoadBMP( InterfacePath + 'logPrevious.bmp', cTransparent );
+      DXPrev2 := SoAOS_DX_LoadBMP( InterfacePath + 'logPrevious2.bmp', cTransparent );
+      DXNext := SoAOS_DX_LoadBMP( InterfacePath + 'logNext.bmp', cTransparent );
+      DXNext2 := SoAOS_DX_LoadBMP( InterfacePath + 'logNext2.bmp', cTransparent );
     end;
 
-    BMBack.LoadFromFile( InterfacePath + 'obInvBackToGame.bmp' );
-    DXBackToGame := DDGetImage( lpDD, BMBack, $00FFFF00, False );
-
-    BMBack.LoadFromFile( InterfacePath + 'LogScreen.bmp' );
-    DXBack := DDGetImage( lpDD, BMBack, rgb( 255, 0, 255 ), False );
-    lpDDSBack.BltFast( 0, 0, DXBack, Rect( 0, 0, BMBack.width, BMBack.Height ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+    DXBackToGame := SoAOS_DX_LoadBMP( InterfacePath + 'obInvBackToGame.bmp', cInvisColor );
+    DXBack := SoAOS_DX_LoadBMP( InterfacePath + 'LogScreen.bmp', cTransparent, width, height );
+    pr := Rect( 0, 0, width, height );
+    lpDDSBack.BltFast( 0, 0, DXBack, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
 
   //Now for the Alpha'ed edges
-    BMBack.LoadFromFile( InterfacePath + 'obInvRightShadow.bmp' );
-    DXBorder := DDGetImage( lpDD, BMBack, $00FFFF00, False );
-    DrawSub( lpDDSBack, Rect( 659, 0, 659 + BMBack.Width, BMBack.Height ), Rect( 0, 0, BMBack.Width, BMBack.Height ), DXBorder, True, 150 );
+    DXBorder := SoAOS_DX_LoadBMP( InterfacePath + 'obInvRightShadow.bmp', cInvisColor, width, height );
+    DrawSub( lpDDSBack, Rect( 659, 0, 659 + width, height ), Rect( 0, 0, width, height ), DXBorder, True, 150 );
 
     DXBorder := nil;
 
-    BMBack.LoadFromFile( InterfacePath + 'obInvBottomShadow.bmp' );
-    DXBorder := DDGetImage( lpDD, BMBack, $00FFFF00, False );
-    DrawSub( lpDDSBack, Rect( 0, 456, BMBack.Width, 456 + BMBack.Height ), Rect( 0, 0, BMBack.Width, BMBack.Height ), DXBorder, True, 150 );
+    DXBorder := SoAOS_DX_LoadBMP( InterfacePath + 'obInvBottomShadow.bmp', cInvisColor, width, height );
+    DrawSub( lpDDSBack, Rect( 0, 456, width, 456 + height ), Rect( 0, 0, width, height ), DXBorder, True, 150 );
 
     DXBorder := nil; //release DXBorder
 
-    BMBack.Free;
-
     if IniFileFound and ( MaxPages > 0 ) then
     begin //(LogInfo.count > 15) then begin
-      lpDDSBack.BltFast( 400, 424, DXPrev, Rect( 0, 0, 86, 29 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
-      lpDDSBack.BltFast( 500, 424, DXNext, Rect( 0, 0, 62, 27 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+      pr := Rect( 0, 0, 86, 29 );
+      lpDDSBack.BltFast( 400, 424, DXPrev, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+      pr := Rect( 0, 0, 62, 27 );
+      lpDDSBack.BltFast( 500, 424, DXNext, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
     end;
 
     pText.PlotText( Title, 5, 5, 240 );
@@ -293,9 +275,7 @@ begin
     ShowText( PageNumber );
     pText.plotText( txtMessage[ 0 ] + inttostr( PageNumber + 1 ) + txtMessage[ 1 ] + inttostr( MaxPages + 1 ), 20, 424, 240 );
 
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
+    SoAOS_DX_BltFront;
   except
     on E : Exception do
       Log.log( FailName + E.Message );
@@ -306,6 +286,8 @@ end; //Init
 procedure TLogScreen.MouseDown( Sender : TAniview; Button : TMouseButton; Shift : TShiftState; X, Y, GridX, GridY : integer );
 const
   FailName : string = 'TLogScreen.Mousedown';
+var
+  pr : TRect;
 begin
 {$IFDEF DODEBUG}
   if ( CurrDbgLvl >= DbgLvlSevere ) then
@@ -320,8 +302,10 @@ begin
         if PageNumber > 0 then
         begin
           PageNumber := PageNumber - 1;
-          lpDDSBack.BltFast( 0, 40, DXBack, Rect( 0, 40, 650, 415 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
-          lpDDSBack.BltFast( 20, 424, DXBack, Rect( 20, 424, 350, 450 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+          pr := Rect( 0, 40, 650, 415 );
+          lpDDSBack.BltFast( 0, 40, DXBack, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+          pr := Rect( 20, 424, 350, 450 );
+          lpDDSBack.BltFast( 20, 424, DXBack, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
           pText.plotText( txtMessage[ 0 ] + inttostr( PageNumber + 1 ) + txtMessage[ 1 ] + inttostr( MaxPages + 1 ), 20, 424, 240 );
           ShowText( PageNumber );
         end;
@@ -337,8 +321,10 @@ begin
         if PageNumber < MaxPages then
         begin
           PageNumber := PageNumber + 1;
-          lpDDSBack.BltFast( 0, 40, DXBack, Rect( 0, 40, 650, 415 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
-          lpDDSBack.BltFast( 20, 424, DXBack, Rect( 20, 424, 350, 450 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+          pr := Rect( 0, 40, 650, 415 );
+          lpDDSBack.BltFast( 0, 40, DXBack, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+          pr := Rect( 20, 424, 350, 450 );
+          lpDDSBack.BltFast( 20, 424, DXBack, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
           pText.plotText( txtMessage[ 0 ] + inttostr( PageNumber + 1 ) + txtMessage[ 1 ] + inttostr( MaxPages + 1 ), 20, 424, 240 );
           ShowText( PageNumber );
         end;
@@ -358,39 +344,44 @@ end; //MouseDown
 procedure TLogScreen.MouseMove( Sender : TAniview; Shift : TShiftState; X, Y, GridX, GridY : integer );
 const
   FailName : string = 'TLogScreen.mouseMove';
+var
+  pr : TRect;
 begin
 {$IFDEF DODEBUG}
   if ( CurrDbgLvl >= DbgLvlSevere ) then
     Log.LogEntry( FailName );
 {$ENDIF}
   try
-
-    lpDDSBack.BltFast( 588, 407, DXBack, Rect( 588, 407, 588 + 77, 407 + 54 ), DDBLTFAST_WAIT );
+    pr := Rect( 588, 407, 588 + 77, 407 + 54 );
+    lpDDSBack.BltFast( 588, 407, DXBack, @pr, DDBLTFAST_WAIT );
     if IniFileFound and ( MaxPages > 0 ) then
     begin //(LogInfo.count > 15) then begin
-      lpDDSBack.BltFast( 400, 424, DXPrev, Rect( 0, 0, 86, 29 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
-      lpDDSBack.BltFast( 500, 424, DXNext, Rect( 0, 0, 62, 27 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+      pr := Rect( 0, 0, 86, 29 );
+      lpDDSBack.BltFast( 400, 424, DXPrev, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+      pr := Rect( 0, 0, 62, 27 );
+      lpDDSBack.BltFast( 500, 424, DXNext, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
     end;
     if IniFileFound and ( MaxPages > 0 ) then
     begin //(LogInfo.count > 15) then begin
       if PtinRect( rect( 400, 424, 400 + 86, 424 + 29 ), point( X, Y ) ) then
       begin //over prev
-        lpDDSBack.BltFast( 400, 424, DXPrev2, Rect( 0, 0, 86, 29 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+        pr := Rect( 0, 0, 86, 29 );
+        lpDDSBack.BltFast( 400, 424, DXPrev2, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
       end;
       if PtinRect( rect( 500, 424, 500 + 86, 424 + 29 ), point( X, Y ) ) then
       begin //over next
-        lpDDSBack.BltFast( 500, 424, DXNext2, Rect( 0, 0, 62, 27 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+        pr := Rect( 0, 0, 62, 27 );
+        lpDDSBack.BltFast( 500, 424, DXNext2, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
       end;
     end;
     if PtinRect( rect( 588, 407, 588 + 77, 412 + 54 ), point( X, Y ) ) then
     begin //over back button
       //plot highlighted back to game
-      lpDDSBack.BltFast( 588, 407, DXBackToGame, Rect( 0, 0, 77, 54 ), DDBLTFAST_WAIT );
+      pr := Rect( 0, 0, 77, 54 );
+      lpDDSBack.BltFast( 588, 407, DXBackToGame, @pr, DDBLTFAST_WAIT );
     end;
 
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
+    SoAOS_DX_BltFront;
   except
     on E : Exception do
       Log.log( FailName + E.Message );

@@ -62,15 +62,8 @@ unit WolfAI;
 interface
 
 uses
-  Classes,
-  SysUtils,
   Character,
-  Engine,
-  Anigrp30,
-  LogFile,
-  dialogs,
-  Resource,
-  Graphics;
+  Anigrp30;
 
 type
   TWolfType = ( wtWolf, wtStarving, wtDire, wtRabid );
@@ -137,9 +130,14 @@ function AssignWolfAI( AIName : string ) : TAI;
 
 implementation
 
-const
-  PI = 3.1415926535;
-  pi2 = 2 * PI;
+uses
+  System.Classes,
+  System.SysUtils,
+  System.Types,
+  SoAOS.Types,
+  AniDemo,
+  LogFile,
+  Resource;
 
 function AssignWolfAI( AIName : string ) : TAI;
 var
@@ -269,11 +267,11 @@ begin
   try
     Character.Track := nil;
     r := random( 500 );
-    T := pi2 * random( 360 ) / 360;
+    T := c2PI * random( 360 ) / 360;
     X := Round( r * cos( T ) ) + CenterX;
     Y := Round( r * sin( T ) ) + CenterY;
     Character.walkTo( X, Y, 16 );
-    character.say( '...', clblack ); //clear text
+    character.say( '...', cTalkBlackColor ); //clear text
     delay := Random( 200 ) + 200;
     Walking := True;
   except
@@ -810,6 +808,18 @@ begin
         i := StrToInt( s );
         if i >= 0 then
         begin
+
+          //Addition: Because of higher resolution you can see opponents earlier, ranged attack without counterreaction
+          if ScreenMetrics.ScreenWidth>800 then //TODO: Refactor like alot of other stuff - too much copy-paste everywhere
+          begin
+            if not Character.TitleExists('Widescreen') then
+            begin
+              Character.Vision := Character.Vision + 400;
+              Character.AddTitle('Widescreen');
+            end;
+          end;
+          // Addition
+
           character.Mysticism := player.Mysticism + i;
           character.Stealth := player.Stealth + i;
           character.combat := player.combat + i;

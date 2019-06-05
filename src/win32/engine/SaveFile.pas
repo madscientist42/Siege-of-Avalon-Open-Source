@@ -62,10 +62,8 @@ unit SaveFile;
 interface
 
 uses
-  Windows,
-  SysUtils,
-  Classes,
-  LogFile;
+  System.SysUtils,
+  System.Classes;
 
 type
   TSavBlocks = ( sbMap, sbMapKnown, sbCharacter, sbItem, sbTravel, sbJournal, scAbstract, scSoundPlayer, scPathCorner, scTrigger, scSpriteObject,
@@ -157,6 +155,11 @@ const
   EOBMarker = $4242;
 
 implementation
+
+uses
+  System.IOUtils,
+  SoAOS.Types,
+  AniDemo;
 
 { TSavFile }
 
@@ -363,7 +366,7 @@ var
   BlockPos, BlockSize, L : longint;
   EOB, BB : word;
   Block : TSavBlocks;
-  S : string;
+  S : AnsiString;
   List : TStringList;
   BlockPointer : PBlockPointer;
   i : integer;
@@ -422,7 +425,8 @@ begin
     FProperties := nil;
     CreatedProperties := false;
   end;
-  MaxPartyMembers := 2;
+
+  MaxPartyMembers := ScreenMetrics.PartyMemberSlots; //Original 2
 
   for i := 0 to MapIndex.count - 1 do
   begin
@@ -431,7 +435,7 @@ begin
   end;
   MapIndex.Clear;
 
-  if not FileExists( FFilename ) then
+  if not TFile.Exists( FFilename ) then
   begin
     NewFormat := true;
     exit;
@@ -447,7 +451,7 @@ begin
   try
 
     IdxFile := ChangeFileExt( Filename, '.idx' );
-    NewFormat := FileExists( IdxFile );
+    NewFormat := TFile.Exists( IdxFile );
     if NewFormat then
     begin
       Stream := TFileStream.create( IdxFile, fmOpenRead or fmShareCompat );
@@ -765,8 +769,9 @@ end;
 procedure TSavFile.Save;
 var
   Stream : TFileStream;
-  Mem : TmemoryStream;
-  S : string;
+  Mem : TMemoryStream;
+  S : AnsiString;
+  SavFileName : string;
   MapFilename : string;
   List : TStringList;
   EOB : word;
@@ -799,16 +804,16 @@ begin
       begin
         //if we're saveing as a new file, but haven't changed anything
         try
-          if FileExists( FFilename ) then
-            CopyFile( PChar( FFilename ), PChar( NewFilename ), false )
+          if TFile.Exists( FFilename ) then
+            TFile.Copy( FFilename, NewFilename, True )
           else
-            DeleteFile( NewFilename );
+            TFile.Delete( NewFilename );
         except
         end;
       end
       else if NewFormat and not NewFile and not NeedProperties then
       begin
-        if FileExists( FFilename ) then
+        if TFile.Exists( FFilename ) then
         begin
           //Save in place - dont touch unchanged data before current block
           //Move current block to end
@@ -883,7 +888,7 @@ begin
       end
       else
       begin
-        if FileExists( FFilename ) then
+        if TFile.Exists( FFilename ) then
         begin
           Mem := TMemoryStream.create;
           try
@@ -967,9 +972,9 @@ begin
       if not assigned( MapStream ) then
       begin
         try
-          S := ChangeFileExt( FFilename, '.map' );
-          if FileExists( S ) then
-            CopyFile( PChar( S ), PChar( MapFilename ), false );
+          SavFileName := ChangeFileExt( FFilename, '.map' );
+          if TFile.Exists( SavFileName ) then
+            TFile.Copy( SavFileName, MapFilename, True );
         except
         end;
       end;
@@ -991,7 +996,7 @@ begin
       end
       else
       begin
-        if FileExists( MapFilename ) then
+        if TFile.Exists( MapFilename ) then
           Stream := TFileStream.create( MapFilename, fmOpenReadWrite or fmShareCompat )
         else
           Stream := TFileStream.create( MapFilename, fmCreate or fmShareCompat );
@@ -1020,7 +1025,7 @@ begin
 
       Block := sbIndex;
       Stream.Write( Block, sizeof( Block ) );
-      S := MapIndex.Text;
+      S := AnsiString( MapIndex.Text );
       L := Length( S ) + MapIndex.count * sizeof( TBlockPointer ) + sizeof( L );
       Stream.write( L, sizeof( L ) );
       L := Length( S );
@@ -1036,11 +1041,11 @@ begin
       Block := sbMap;
       Stream.Write( Block, sizeof( Block ) );
       List.Clear;
-      S := 'Map=' + MapName;
+      S := AnsiString( 'Map=' + MapName );
       List.add( S );
-      S := 'Scene=' + SceneName;
+      S := AnsiString( 'Scene=' + SceneName );
       List.add( S );
-      S := List.Text;
+      S := AnsiString( List.Text );
       L := Length( S );
       Stream.write( L, sizeof( L ) );
       if L > 0 then
@@ -1052,11 +1057,11 @@ begin
       i := TravelList.IndexOf( FCurrentMap );
       if i < 0 then
         TravelList.add( FCurrentMap );
-      S := FCurrentMap + '|' + lowercase( CurrentScene );
+      S := AnsiString( FCurrentMap + '|' + lowercase( CurrentScene ) );
       i := TravelList.IndexOf( S );
       if i < 0 then
         TravelList.add( S );
-      S := TravelList.Text;
+      S := AnsiString( TravelList.Text );
       L := Length( S );
       Stream.write( L, sizeof( L ) );
       if L > 0 then
@@ -1065,7 +1070,7 @@ begin
 
       Block := sbJournal;
       Stream.Write( Block, sizeof( Block ) );
-      S := JournalList.Text;
+      S := AnsiString( JournalList.Text );
       L := Length( S );
       Stream.write( L, sizeof( L ) );
       if L > 0 then
@@ -1081,7 +1086,7 @@ begin
 
       Block := sbQuest;
       Stream.Write( Block, sizeof( Block ) );
-      S := QuestList.Text;
+      S := AnsiString( QuestList.Text );
       L := Length( S );
       Stream.write( L, sizeof( L ) );
       if L > 0 then
@@ -1090,7 +1095,7 @@ begin
 
       Block := sbAdventure;
       Stream.Write( Block, sizeof( Block ) );
-      S := AdventureList.Text;
+      S := AnsiString( AdventureList.Text );
       L := Length( S );
       Stream.write( L, sizeof( L ) );
       if L > 0 then
@@ -1120,7 +1125,7 @@ begin
 
       Block := sbDeathScreen;
       Stream.Write( Block, sizeof( Block ) );
-      S := DeathScreen;
+      S := AnsiString( DeathScreen );
       L := Length( S );
       Stream.write( L, sizeof( L ) );
       if L > 0 then

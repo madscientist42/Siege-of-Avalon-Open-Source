@@ -59,28 +59,19 @@ unit Intro;
 {                                                                              }
 {******************************************************************************}
 
-{$INCLUDE Anigrp30cfg.inc}
-
 interface
 
 uses
 {$IFDEF DirectX}
   DirectX,
   DXUtil,
-  DXEffects,
 {$ENDIF}
-  Windows,
-  Messages,
-  SysUtils,
-  Classes,
-  Graphics,
-  Controls,
-  Forms,
-  Dialogs,
-  ExtCtrls,
-  Character,
-  Resource,
-  StdCtrls,
+  Winapi.Windows,
+  System.SysUtils,
+  System.Types,
+  System.Classes,
+  Vcl.Graphics,
+  Vcl.Controls,
   GameText,
   Display,
   Anigrp30,
@@ -120,6 +111,8 @@ type
 implementation
 
 uses
+  SoAOS.Types,
+  SoAOS.Graphics.Draw,
   AniDemo;
 
 const
@@ -141,7 +134,7 @@ begin
 {$ENDIF}
   try
     Caption.Rect := Rect( X, Y, X + W, Y + H );
-    Caption.Image := DDGetSurface( lpDD, W, H, $FF00FF, true );
+    Caption.Image := DDGetSurface( lpDD, W, H, cInvisIntro, true );
     Caption.Image.GetDC( DC );
     try
       BitBlt( DC, 0, 0, W, H, BM.canvas.handle, X - XFrame, Y - YFrame, SRCCOPY );
@@ -193,6 +186,7 @@ var
   BM : TBitmap;
   DC : HDC;
   Y1 : integer;
+  pr : TRect;
 const
   FailName : string = 'TIntro.Init';
 begin
@@ -214,7 +208,7 @@ begin
     BM := TBitmap.Create;
     try
       BM.LoadFromFile( InterfacePath + 'gMainMenuBlank.bmp' );
-      DXBack := DDGetImage( lpDD, BM, $00FFFF00, true );
+      DXBack := SoAOS_DX_SurfaceFromBMP( BM, cInvisColor );
 
       BM.LoadFromFile( InterfacePath + 'gMainMenuText.bmp' );
       DXBack.GetDC( DC );
@@ -224,41 +218,39 @@ begin
         DXBack.ReleaseDC( DC );
       end;
 
-      lpDDSBack.BltFast( 0, 0, DXBack, Rect( 0, 0, 800, 600 ), DDBLTFAST_NOCOLORKEY or DDBLTFAST_WAIT );
+      pr := Rect( 0, 0, 800, 600 ); //NOHD
+      lpDDSBack.BltFast( 0, 0, DXBack, @pr, DDBLTFAST_NOCOLORKEY or DDBLTFAST_WAIT );
 
       BM.LoadFromFile( InterfacePath + 'gMainMenuTextBttns.bmp' );
       Y1 := YFrame;
-      MakeRect( Captions[ 1 ], XFrame, Y1, BM );
+      MakeRect( Captions[ 1 ], XFrame, Y1, BM );  // New game
 
       inc( Y1, 52 );
-      MakeRect( Captions[ 2 ], XFrame, Y1, BM );
+      MakeRect( Captions[ 2 ], XFrame, Y1, BM );  // Load
 
       inc( Y1, 52 );
-      MakeRect( Captions[ 3 ], XFrame, Y1, BM );
+      MakeRect( Captions[ 3 ], XFrame, Y1, BM );  // Save
 
       inc( Y1, 52 );
-      MakeRect( Captions[ 4 ], XFrame, Y1, BM );
+      MakeRect( Captions[ 4 ], XFrame, Y1, BM );  // Options
 
       inc( Y1, 52 );
-      MakeRect( Captions[ 5 ], XFrame, Y1, BM );
+      MakeRect( Captions[ 5 ], XFrame, Y1, BM );  // History
 
       inc( Y1, 52 );
-      MakeRect( Captions[ 6 ], XFrame, Y1, BM );
+      MakeRect( Captions[ 6 ], XFrame, Y1, BM );  // Credits
 
       inc( Y1, 52 );
-      MakeRect( Captions[ 7 ], XFrame, Y1, BM );
+      MakeRect( Captions[ 7 ], XFrame, Y1, BM );  // Exit
 
       inc( Y1, 52 );
-      MakeRect( Captions[ 8 ], XFrame, Y1, BM );
+      MakeRect( Captions[ 8 ], XFrame, Y1, BM );  // Resume
 
     finally
       BM.Free;
     end;
 
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
-
+    SoAOS_DX_BltFront;
   except
     on E : Exception do
       Log.log( FailName, E.Message, [ ] );
@@ -274,6 +266,7 @@ end;
 procedure TIntro.MouseDown( Sender : TAniview; Button : TMouseButton; Shift : TShiftState; X, Y, GridX, GridY : integer );
 var
   i : integer;
+  pr : TRect;
 const
   FailName : string = 'TIntro.MouseDown';
 begin
@@ -313,10 +306,9 @@ begin
       else if PtInRect( rect( 438, 456, 488, 484 ), point( x, y ) ) then
       begin //No pressed- just show screen
         AreYouSureBoxVisible := false;
-        lpDDSBack.BltFast( 0, 0, DXBack, rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT ); //clear screen
-        lpDDSFront.Flip( nil, DDFLIP_WAIT );
-        lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-        MouseCursor.PlotDirty := false;
+        pr := Rect( 0, 0, 800, 600 );  //NOHD
+        lpDDSBack.BltFast( 0, 0, DXBack, @pr, DDBLTFAST_WAIT ); //clear screen
+        SoAOS_DX_BltFront;
       end; //endif PtInRect
     end;
   except
@@ -331,6 +323,7 @@ procedure TIntro.MouseMove( Sender : TAniview; Shift : TShiftState; X, Y,
 var
   Choice : integer;
   i : integer;
+  pr : TRect;
 const
   FailName : string = 'TIntro.MouseMove';
 begin
@@ -349,10 +342,10 @@ begin
           Choice := i;
           if Choice <> PrevChoice then
           begin
-            lpDDSBack.BltFast( 0, 0, DXBack, Rect( 0, 0, 800, 600 ), DDBLTFAST_NOCOLORKEY or DDBLTFAST_WAIT );
-            lpDDSBack.BltFast( Captions[ i ].Rect.Left, Captions[ i ].Rect.Top, Captions[ i ].Image,
-              Rect( 0, 0, Captions[ i ].Rect.Right - Captions[ i ].Rect.Left, Captions[ i ].Rect.Bottom - Captions[ i ].Rect.Top ),
-              DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+            pr := Rect( 0, 0, 800, 600 ); //NOHD
+            lpDDSBack.BltFast( 0, 0, DXBack, @pr, DDBLTFAST_NOCOLORKEY or DDBLTFAST_WAIT );
+            pr := Rect( 0, 0, Captions[ i ].Rect.Right - Captions[ i ].Rect.Left, Captions[ i ].Rect.Bottom - Captions[ i ].Rect.Top );
+            lpDDSBack.BltFast( Captions[ i ].Rect.Left, Captions[ i ].Rect.Top, Captions[ i ].Image, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
             lpDDSFront.Flip( nil, DDFLIP_WAIT );
             MouseCursor.PlotDirty := false;
           end;
@@ -362,7 +355,8 @@ begin
 
       if ( Choice = 0 ) and ( Choice <> PrevChoice ) then
       begin
-        lpDDSBack.BltFast( 0, 0, DXBack, Rect( 0, 0, 800, 600 ), DDBLTFAST_NOCOLORKEY or DDBLTFAST_WAIT );
+        pr := Rect( 0, 0, 800, 600 ); //NOHD
+        lpDDSBack.BltFast( 0, 0, DXBack, @pr, DDBLTFAST_NOCOLORKEY or DDBLTFAST_WAIT );
         lpDDSFront.Flip( nil, DDFLIP_WAIT );
         MouseCursor.PlotDirty := false;
       end;
@@ -377,10 +371,10 @@ end;
 
 procedure TIntro.AreYouSure;
 var
-  BM : TBitmap;
+  width, height : Integer;
   DXBorders : IDirectDrawSurface;
-  InvisColor : integer;
   nRect : TRect;
+  pr : TRect;
 const
   FailName : string = 'TIntro.AreYouSure ';
 begin
@@ -390,36 +384,26 @@ begin
     Log.LogEntry( FailName );
 {$ENDIF}
   try
-
-    BM := TBitmap.Create;
-  //transparent color
-    InvisColor := $00FFFF00;
-
-    BM.LoadFromFile( InterfacePath + 'ldChooseBox.bmp' );
-    DXBorders := DDGetImage( lpDD, BM, InvisColor, False );
+    DXBorders := SoAOS_DX_LoadBMP( InterfacePath + 'ldChooseBox.bmp', cInvisColor, width, height );
     nRect := Captions[ 7 ].Rect; //Exit
 
-    lpDDSBack.BltFast( 0, 0, DXBack, rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    lpDDSBack.BltFast( 400 - BM.width div 2, nRect.top + 32, DXBorders, Rect( 0, 0, BM.width, BM.Height ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, 800, 600 ); //NOHD
+    lpDDSBack.BltFast( 0, 0, DXBack, @pr, DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, width, height );
+    lpDDSBack.BltFast( 400 - width div 2, nRect.top + 32, DXBorders, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
 
     DXBorders := nil;
 
-    pText.PlotTextBlock( txtMessage[ 0 ], 400 - BM.width div 2 + 23, 400 - BM.width div 2 + 281, nRect.top + 52, 240 );
+    pText.PlotTextBlock( txtMessage[ 0 ], 400 - width div 2 + 23, 400 - width div 2 + 281, nRect.top + 52, 240 );
 
     AreYouSureBoxVisible := true;
 
-    BM.Free;
-
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
-
+    SoAOS_DX_BltFront;
   except
     on E : Exception do
       Log.log( FailName, E.Message, [ ] );
   end;
 end; //AreYouSure
-
 
 procedure TIntro.Release;
 var

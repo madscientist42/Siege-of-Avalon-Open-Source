@@ -59,34 +59,22 @@ unit CharCreation;
 {                                                                              }
 {******************************************************************************}
 
-{$INCLUDE Anigrp30cfg.inc}
-
 interface
 
 uses
 {$IFDEF DirectX}
   DirectX,
-  DXUtil,
-  DXEffects,
 {$ENDIF}
-  Windows,
-  Messages,
-  SysUtils,
-  Classes,
-  Graphics,
-  Controls,
-  Forms,
-  Dialogs,
-  ExtCtrls,
+  System.Types,
+  System.Classes,
+  Vcl.Controls,
+  Vcl.Forms,
+  Vcl.ExtCtrls,
   Character,
   Resource,
-  StdCtrls,
-  GameText,
   Display,
-  Anigrp30,
-  Engine,
-  Logfile;
-  
+  Anigrp30;
+
 type
   InformationRect = record
     rect : TRect;
@@ -108,7 +96,6 @@ type
     CaratCharPosition : integer; //position in Characters
     CaratVisible : boolean;
     //Bitmap stuff
-    BMBack : TBitmap; //The inventory screen bitmap used for loading
     DXBack : IDirectDrawSurface; //DD surface that holds the statistics screen before blit
     DXCircle : IDirectDrawSurface; //circle used for outline
     //DXRightArrow:  IDirectDrawSurface;
@@ -186,9 +173,22 @@ type
     procedure Init; override;
     procedure Release; override;
   end;
+
 implementation
+
 uses
+  System.SysUtils,
+{$IFDEF DirectX}
+  DXUtil,
+  DXEffects,
+{$ENDIF}
+  SoAOS.Types,
+  SoAOS.Graphics.Draw,
+  Engine,
+  Logfile,
+  GameText,
   AniDemo;
+
 { TCreation }
 
 constructor TCreation.Create;
@@ -201,8 +201,8 @@ begin
 {$ENDIF}
   try
     inherited;
-    chaContinueRect := Rect( 400, 449, 0, 0 ); // left, top, right, bottom
-    chaCancelRect := Rect( 100, 449, 0, 0 );
+    chaContinueRect := Rect( 400, 449, 0, 0 ); // left, top, right, bottom chaContinueRect := Rect( 498, 450, 0, 0 ); gondur //HD
+    chaCancelRect := Rect( 100, 449, 0, 0 ); // chaCancelRect := Rect( 102, 450, 0, 0 );  gondur //HD
   except
     on E : Exception do
       Log.log( FailName + E.Message );
@@ -231,8 +231,8 @@ end;
 
 procedure TCreation.Init;
 var
-  InvisColor : Integer;
-  i : integer;
+  i, width, height : integer;
+  pr : TRect;
 const
   FailName : string = 'TCreation.init';
 begin
@@ -281,40 +281,24 @@ begin
     LoadNames;
     CreateCollisionRects;
     LoadBaseValues;
-    BMBack := TBitmap.Create;
-  //BMTemp := TBitmap.Create;
-  //transparent color
-    InvisColor := $00FFFF00;
+
   //Load the Background Bitmap and plot it
 
-    BMBack.LoadFromFile( InterfacePath + 'chaRedOval.bmp' );
-    DXCircle := DDGetImage( lpDD, BMBack, InvisColor, False );
-    BMBack.LoadFromFile( InterfacePath + 'chaBlack.bmp' );
-    DXBlack := DDGetImage( lpDD, BMBack, InvisColor, False );
-    BMBack.LoadFromFile( InterfacePath + 'chaChooseBox.bmp' );
-    DXBox := DDGetImage( lpDD, BMBack, InvisColor, False );
-    BMBack.LoadFromFile( InterfacePath + 'chaContinue.bmp' );
-    chaContinueRect.Right := BMBack.width;
-    chaContinueRect.Bottom := BMBack.height;
-    DXContinue := DDGetImage( lpDD, BMBack, InvisColor, False );
-    BMBack.LoadFromFile( InterfacePath + 'chaCancel.bmp' );
-    chaCancelRect.Right := BMBack.width;
-    chaCancelRect.Bottom := BMBack.height;
-    DXCancel := DDGetImage( lpDD, BMBack, InvisColor, False );
-    BMBack.LoadFromFile( InterfacePath + 'CharCreate.bmp' );
-    DXBack := DDGetImage( lpDD, BMBack, InvisColor, False );
+    DXCircle := SoAOS_DX_LoadBMP( InterfacePath + 'chaRedOval.bmp', cInvisColor );
+    DXBlack := SoAOS_DX_LoadBMP( InterfacePath + 'chaBlack.bmp', cInvisColor );
+    DXBox := SoAOS_DX_LoadBMP( InterfacePath + 'chaChooseBox.bmp', cInvisColor );
+    DXContinue := SoAOS_DX_LoadBMP( InterfacePath + 'chaContinue.bmp', cInvisColor, width, height );
+    chaContinueRect.Right := width;
+    chaContinueRect.Bottom := height;
+    DXCancel := SoAOS_DX_LoadBMP( InterfacePath + 'chaCancel.bmp', cInvisColor, width, height );
+    chaCancelRect.Right := width;
+    chaCancelRect.Bottom := height;
+    DXBack := SoAOS_DX_LoadBMP( InterfacePath + 'CharCreate.bmp', cInvisColor, width, height );
+    pr := Rect( 0, 0, width, height );
+    lpDDSBack.BltFast( 0, 0, DXBack, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
 
-
-    lpDDSBack.BltFast( 0, 0, DXBack, Rect( 0, 0, BMBack.width, BMBack.Height ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
-
-
-  //release the bitmap
-    BMBack.Free;
     ShowStats;
     DrawTheGuy;
-  //Whew! Now we flip it all to the screen
-//  lpDDSFront.Flip(nil, DDFLIP_WAIT);
-//  lpDDSBack.BltFast(0, 0, lpDDSFront, Rect(0, 0, 800, 600), DDBLTFAST_WAIT);
 
   except
     on E : Exception do
@@ -362,7 +346,6 @@ var
   i : integer;
   BoxWasOpened : boolean;
   BoxClosed : boolean;
-
 const
   FailName : string = 'TCreation.MouseDown';
 begin
@@ -485,11 +468,11 @@ begin
           begin
             if ChosenTraining = 18 then
             begin
-              Character.Strength := Character.BaseStrength - 5;
+              Character.Strength := Character.BaseStrength - 4;
               Character.Coordination := Character.BaseCoordination - 2;
-              Character.Constitution := Character.BaseConstitution - 3;
+              Character.Constitution := Character.BaseConstitution - 2;
               Character.Perception := Character.BasePerception + 3;
-              Character.Charm := Character.BaseCharm + 3;
+              Character.Charm := Character.BaseCharm + 1;
               Character.Mysticism := Character.BaseMysticism + 3;
               Character.Combat := Character.BaseCombat - 10;
               Character.Stealth := Character.BaseStealth - 0;
@@ -528,11 +511,11 @@ begin
                 pText.PlotGoldTextCentered( lpDDSBack, txtMessage[ 5 ], 300, 448, 135, 250 )
               else
                 pText.PlotTextCentered( txtMessage[ 5 ], 300, 448, 135, 250 );
-              Character.Strength := Character.BaseStrength + 5;
+              Character.Strength := Character.BaseStrength + 4;
               Character.Coordination := Character.BaseCoordination + 2;
-              Character.Constitution := Character.BaseConstitution + 3;
+              Character.Constitution := Character.BaseConstitution + 2;
               Character.Perception := Character.BasePerception - 3;
-              Character.Charm := Character.BaseCharm - 3;
+              Character.Charm := Character.BaseCharm - 1;
               Character.Mysticism := Character.BaseMysticism - 3;
               Character.Combat := Character.BaseCombat + 10;
               Character.Stealth := Character.BaseStealth + 0;
@@ -581,10 +564,10 @@ begin
       else if ( ptInRect( rect( 465, 59, 465 + 123, 59 + 181 ), point( x, y ) ) and ( Y > 59 + 141 ) ) or ( ptInRect( rect( 279, 239 + ( BoxOpen - 12 ) * 42, 279 + 123, 239 + ( BoxOpen - 12 ) * 42 + 181 ), point( x, y ) ) and ( Y > 239 + ( BoxOpen - 12 ) * 42 + 141 ) ) then
       begin
        //clean up any dimmed text
-        lpDDSBack.BltFast( 114, 237, DXBack, Rect( 114, 237, 261, 439 ), DDBLTFAST_WAIT );
+        SoAOS_DX_BltFastWaitXY( DXBack, Rect( 114, 237, 261, 439 ) );
        //clean up after old boxes
-        lpDDSBack.BltFast( 279, 239, DXBack, Rect( 279, 239, 402, 588 ), DDBLTFAST_WAIT );
-        lpDDSBack.BltFast( 465, 59, DXBack, Rect( 465, 59, 465 + 123, 59 + 181 ), DDBLTFAST_WAIT );
+        SoAOS_DX_BltFastWaitXY( DXBack, Rect( 279, 239, 402, 588 ) );
+        SoAOS_DX_BltFastWaitXY( DXBack, Rect( 465, 59, 465 + 123, 59 + 181 ) );
         BoxOpen := -1;
         BoxClosed := true;
       end;
@@ -603,10 +586,10 @@ begin
       if ( BoxWasOpened = false ) and ( BoxOpen > -1 ) then
       begin //close the box -they clicked outside
        //clean up any dimmed text
-        lpDDSBack.BltFast( 114, 237, DXBack, Rect( 114, 237, 261, 439 ), DDBLTFAST_WAIT );
+        SoAOS_DX_BltFastWaitXY( DXBack, Rect( 114, 237, 261, 439 ) );
        //clean up after old boxes
-        lpDDSBack.BltFast( 279, 239, DXBack, Rect( 279, 239, 402, 588 ), DDBLTFAST_WAIT );
-        lpDDSBack.BltFast( 465, 59, DXBack, Rect( 465, 59, 465 + 123, 59 + 181 ), DDBLTFAST_WAIT );
+        SoAOS_DX_BltFastWaitXY( DXBack, Rect( 279, 239, 402, 588 ) );
+        SoAOS_DX_BltFastWaitXY( DXBack, Rect( 465, 59, 465 + 123, 59 + 181 ) );
         BoxOpen := -1;
         BoxClosed := true;
       end; //endif
@@ -628,7 +611,7 @@ begin
         begin //Hasnt entered name- tell player to enter name or pick training
           if BoxOpen = 17 then
           begin
-            lpDDSBack.BltFast( 490, 239, DXBack, Rect( 490, 239, 682, 430 ), DDBLTFAST_WAIT );
+            SoAOS_DX_BltFastWaitXY( DXBack, Rect( 490, 239, 682, 430 ) );
             if UseSmallFont then
             begin
               if ( ChosenTraining > -1 ) then
@@ -646,7 +629,7 @@ begin
           end
           else
           begin
-            lpDDSBack.BltFast( 490, 160, DXBack, Rect( 490, 160, 682, 430 ), DDBLTFAST_WAIT );
+            SoAOS_DX_BltFastWaitXY( DXBack, Rect( 490, 160, 682, 430 ) );
             if UseSmallFont then
             begin
               if ( ChosenTraining > -1 ) then
@@ -681,6 +664,7 @@ end; //TCreation.MouseDown
 procedure TCreation.MouseMove( Sender : TAniview; Shift : TShiftState; X, Y : Integer; GridX, GridY : integer );
 var
   i : integer;
+  pr : TRect;
 const
   FailName : string = 'TCreation.MouseMove';
 begin
@@ -690,9 +674,13 @@ begin
 {$ENDIF}
   try
      //Clean up continue and cancel
-    lpDDSBack.BltFast( chaContinueRect.Left, chaContinueRect.Top, DXBack, Rect( chaContinueRect.Left, chaContinueRect.Top, chaContinueRect.Left + chaContinueRect.Right, chaContinueRect.Top + chaContinueRect.Bottom ), DDBLTFAST_WAIT );
+    pr := Rect( chaContinueRect.Left, chaContinueRect.Top, chaContinueRect.Left + chaContinueRect.Right, chaContinueRect.Top + chaContinueRect.Bottom );
+    lpDDSBack.BltFast( chaContinueRect.Left, chaContinueRect.Top, DXBack, @pr, DDBLTFAST_WAIT );
     if BoxOpen = -1 then
-      lpDDSBack.BltFast( chaCancelRect.Left, chaCancelRect.Top, DXBack, Rect( chaCancelRect.Left, chaCancelRect.Top, chaCancelRect.Left + chaCancelRect.Right, chaCancelRect.Top + chaCancelRect.Bottom ), DDBLTFAST_WAIT );
+    begin
+      pr := Rect( chaCancelRect.Left, chaCancelRect.Top, chaCancelRect.Left + chaCancelRect.Right, chaCancelRect.Top + chaCancelRect.Bottom );
+      lpDDSBack.BltFast( chaCancelRect.Left, chaCancelRect.Top, DXBack, @pr, DDBLTFAST_WAIT );
+    end;
    //clear text
     if PtinRect( rect( chaContinueRect.Left, chaContinueRect.Top, chaContinueRect.Left + chaContinueRect.Right, chaContinueRect.Top + chaContinueRect.Bottom ), point( X, Y ) ) then
     begin //over continue
@@ -700,10 +688,17 @@ begin
     end
     else
     begin
+
       if BoxOpen = 17 then
-        lpDDSBack.BltFast( 490, 239, DXBack, Rect( 490, 239, 682, 430 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT )
+      begin
+        pr := Rect( 490, 239, 682, 430 );
+        lpDDSBack.BltFast( 490, 239, DXBack, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+      end
       else
-        lpDDSBack.BltFast( 490, 160, DXBack, Rect( 490, 160, 682, 430 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+      begin
+        pr := Rect( 490, 160, 682, 430 );
+        lpDDSBack.BltFast( 490, 160, DXBack, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+      end;
     end;
 
     i := 0;
@@ -797,25 +792,39 @@ begin
       if PtinRect( rect( chaContinueRect.Left, chaContinueRect.Top, chaContinueRect.Left + chaContinueRect.Right, chaContinueRect.Top + chaContinueRect.Bottom ), point( X, Y ) ) then
       begin //over Continue
          //plot highlighted Continue
-        lpDDSBack.BltFast( chaContinueRect.Left, chaContinueRect.Top, DXContinue, Rect( 0, 0, chaContinueRect.Right, chaContinueRect.Bottom ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+        pr := Rect( 0, 0, chaContinueRect.Right, chaContinueRect.Bottom );
+        lpDDSBack.BltFast( chaContinueRect.Left, chaContinueRect.Top, DXContinue, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
       end
       else if PtinRect( rect( chaCancelRect.Left, chaCancelRect.Top, chaCancelRect.Left + chaCancelRect.Right, chaCancelRect.Top + chaCancelRect.Bottom ), point( X, Y ) ) then
       begin //over cancel
          //plot highlighted cancel
-        lpDDSBack.BltFast( chaCancelRect.Left, chaCancelRect.Top, DXCancel, Rect( 0, 0, chaCancelRect.Right, chaCancelRect.Bottom ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+        pr := Rect( 0, 0, chaCancelRect.Right, chaCancelRect.Bottom );
+        lpDDSBack.BltFast( chaCancelRect.Left, chaCancelRect.Top, DXCancel, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
       end;
 
     end;
-
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    if x > 600 then
-      lpDDSBack.BltFast( 500, 0, lpDDSFront, Rect( 500, 0, 800, 600 ), DDBLTFAST_WAIT )
-    else if x > 400 then
-      lpDDSBack.BltFast( 300, 0, lpDDSFront, Rect( 300, 0, 700, 600 ), DDBLTFAST_WAIT )
-    else if x > 200 then
-      lpDDSBack.BltFast( 100, 0, lpDDSFront, Rect( 100, 0, 500, 600 ), DDBLTFAST_WAIT )
-    else
-      lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 300, 600 ), DDBLTFAST_WAIT );
+    // great when all this nonsense code goes away...
+//    lpDDSFront.Flip( nil, DDFLIP_WAIT );
+//    if x > 600 then
+//    begin
+//      pr := Rect( 500, 0, ScreenMetrics.ScreenWidth, ScreenMetrics.ScreenHeight );  // 1920, 1080
+//      lpDDSBack.BltFast( 500, 0, lpDDSFront, @pr, DDBLTFAST_WAIT );
+//    end
+//    else if x > 400 then
+//    begin
+//      pr := Rect( 300, 0, ScreenMetrics.ScreenWidth-100, ScreenMetrics.ScreenHeight );  // 1820, 1080
+//      lpDDSBack.BltFast( 300, 0, lpDDSFront, @pr, DDBLTFAST_WAIT );
+//    end
+//    else if x > 200 then
+//    begin
+//      pr := Rect( 100, 0, ScreenMetrics.ScreenWidth-300, ScreenMetrics.ScreenHeight );  // was 500, 600 <-> 1720, 1080
+//      lpDDSBack.BltFast( 100, 0, lpDDSFront, @pr, DDBLTFAST_WAIT );
+//    end
+//    else
+//    begin
+//      pr := Rect( 0, 0, ScreenMetrics.ScreenWidth-500, ScreenMetrics.ScreenHeight );
+//      lpDDSBack.BltFast( 0, 0, lpDDSFront, @pr, DDBLTFAST_WAIT );  // 1420, 1080
+//    end;
 
   //lpDDSBack.BltFast(101, 61, lpDDSFront, Rect(101, 61, 710, 600), DDBLTFAST_WAIT);
   //lpDDSBack.BltFast(101, 61, lpDDSFront, Rect(101, 61, 710, 600), DDBLTFAST_WAIT);
@@ -852,6 +861,8 @@ end;
 procedure TCreation.Paint;
 const
   FailName : string = 'TCreation.Paint';
+var
+  pr : TRect;
 begin
 {$IFDEF DODEBUG}
   if ( CurrDbgLvl >= DbgLvlSevere ) then
@@ -860,13 +871,12 @@ begin
   try
 
   //clear the back down to the text - but dont clear the info block
-    lpDDSBack.BltFast( 370, 210, DXBack, Rect( 370, 210, 461, 435 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+    pr := Rect( 370, 210, 461, 435 );
+    lpDDSBack.BltFast( 370, 210, DXBack, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
   //replot the entire screen statistics
     ShowStats;
     pText.PlotText( CharacterName, 310, 95, 240 );
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
+    SoAOS_DX_BltFront;
   except
     on E : Exception do
       Log.log( FailName + E.Message );
@@ -876,7 +886,7 @@ end; //TCreation.Paint;
 
 procedure TCreation.CreateCollisionRects;
 var
-  i, j : integer;
+  i : integer;
   LineHeight : integer;
 
 const
@@ -1326,6 +1336,7 @@ procedure TCreation.KeyDown( Sender : TObject; var key : Word; Shift : TShiftSta
 var
   i : integer;
   a : string;
+  pr : TRect;
 const
   FailName : string = 'TCreation.Keydown';
 begin
@@ -1336,7 +1347,8 @@ begin
   try
 
      //DebugPlot(Key);
-    lpDDSBack.BltFast( 300, 92, DXBack, rect( 300, 92, 448, 120 ), DDBLTFAST_WAIT );
+    pr := Rect( 300, 92, 448, 120 );
+    lpDDSBack.BltFast( 300, 92, DXBack, @pr, DDBLTFAST_WAIT );
     if Key = 39 then
       Key := 999; //keep the right arrow form printing Apostrophes
     if Key = 222 then
@@ -1440,9 +1452,7 @@ begin
     pText.PlotText( CharacterName, 310, 95, 240 );
      //plot the Carat
     pText.PlotText( '|', CaratPosition + 310, 95, 240 );
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
+    SoAOS_DX_BltFront;
   except
     on E : Exception do
       Log.log( FailName + E.Message );
@@ -1453,14 +1463,16 @@ end; //TCreation.KeyDown
 procedure TCreation.CaratTimerEvent( Sender : TObject );
 const
   FailName : string = 'TCreation.CaratTimerEvent';
+var
+  pr : TRect;
 begin
 {$IFDEF DODEBUG}
   if ( CurrDbgLvl >= DbgLvlSevere ) then
     Log.LogEntry( FailName );
 {$ENDIF}
   try
-
-    lpDDSBack.BltFast( 300, 92, DXBack, rect( 300, 92, 448, 120 ), DDBLTFAST_WAIT );
+    pr := Rect( 300, 92, 448, 120 );
+    lpDDSBack.BltFast( 300, 92, DXBack, @pr, DDBLTFAST_WAIT );
     inc( LoopCounter );
     if LoopCounter >= 5 then
     begin
@@ -1486,6 +1498,7 @@ end; //TCreation.CaratTimerEvent
 procedure TCreation.OpenBox( box : integer );
 var
   i : integer;
+  pr : TRect;
 const
   FailName : string = 'TCreation.OpenBox';
 begin
@@ -1496,11 +1509,16 @@ begin
   try
 
    //clean up any dimmed text
-    lpDDSBack.BltFast( 114, 237, DXBack, Rect( 114, 237, 261, 439 ), DDBLTFAST_WAIT );
+    pr := Rect( 114, 237, 261, 439 );
+    lpDDSBack.BltFast( 114, 237, DXBack, @pr, DDBLTFAST_WAIT );
    //clean up after old boxes
-    lpDDSBack.BltFast( 279, 239, DXBack, Rect( 279, 239, 402, 588 ), DDBLTFAST_WAIT );
+    pr := Rect( 279, 239, 402, 588 );
+    lpDDSBack.BltFast( 279, 239, DXBack, @pr, DDBLTFAST_WAIT );
     if BoxOpen = 17 then
-      lpDDSBack.BltFast( 465, 59, DXBack, Rect( 465, 59, 465 + 123, 59 + 180 ), DDBLTFAST_WAIT );
+    begin
+      pr := Rect( 465, 59, 465 + 123, 59 + 180 );
+      lpDDSBack.BltFast( 465, 59, DXBack, @pr, DDBLTFAST_WAIT );
+    end;
    //clear the selectable rects
     for i := 0 to 20 do
     begin
@@ -1508,9 +1526,12 @@ begin
     end;
     if box = 17 then
     begin
-      lpDDSBack.BltFast( 490, 160, DXBack, Rect( 490, 160, 682, 430 ), DDBLTFAST_WAIT );
-      lpDDSBack.BltFast( 465, 59, DXBox, Rect( 0, 0, 123, 180 ), DDBLTFAST_WAIT );
-      lpDDSBack.BltFast( 465 + 13, 69 + 38 + 24 * ( SelectedTraining - 18 ), DXCircle, Rect( 0, 0, 96, 21 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+      pr := Rect( 490, 160, 682, 430 );
+      lpDDSBack.BltFast( 490, 160, DXBack, @pr, DDBLTFAST_WAIT );
+      pr := Rect( 0, 0, 123, 180 );
+      lpDDSBack.BltFast( 465, 59, DXBox, @pr, DDBLTFAST_WAIT );
+      pr := Rect( 0, 0, 96, 21 );
+      lpDDSBack.BltFast( 465 + 13, 69 + 38 + 24 * ( SelectedTraining - 18 ), DXCircle, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
       if UseSmallFont then
         pText.PlotGoldTextCentered( lpDDSBack, txtMessage[ 5 ], 465, 465 + 123, 69 + 38, 240 )
       else
@@ -1534,14 +1555,16 @@ begin
           DrawAlpha( lpDDSBack, rect( InfoRect[ i ].rect.left, InfoRect[ i ].rect.top, InfoRect[ i ].rect.right - 20, InfoRect[ i ].rect.bottom ), rect( 0, 0, 25, 25 ), DXBlack, False, 200 );
       end;
      //plot box
-      lpDDSBack.BltFast( 279, 239 + ( box - 12 ) * 42, DXBox, Rect( 0, 0, 123, 180 ), DDBLTFAST_WAIT );
+      pr := Rect( 0, 0, 123, 180 );
+      lpDDSBack.BltFast( 279, 239 + ( box - 12 ) * 42, DXBox, @pr, DDBLTFAST_WAIT );
       if ( Box = 12 ) or ( Box = 13 ) then
       begin
         //now showselected shirt or pants
+        pr := Rect( 0, 0, 96, 21 );
         if Box = 12 then
-          lpDDSBack.BltFast( 279 + 13, 239 + ( box - 12 ) * 42 + 34 + 24 * ixSelectedShirt, DXCircle, Rect( 0, 0, 96, 21 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT )
+          lpDDSBack.BltFast( 279 + 13, 239 + ( box - 12 ) * 42 + 34 + 24 * ixSelectedShirt, DXCircle, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT )
         else
-          lpDDSBack.BltFast( 279 + 13, 239 + ( box - 12 ) * 42 + 34 + 24 * ( ixSelectedPants - 4 ), DXCircle, Rect( 0, 0, 96, 21 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+          lpDDSBack.BltFast( 279 + 13, 239 + ( box - 12 ) * 42 + 34 + 24 * ( ixSelectedPants - 4 ), DXCircle, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
 
         pText.PlotTextCentered( txtMessage[ 12 ], 279, 279 + 123, 239 + ( box - 12 ) * 42 + 34, 240 );
         pText.PlotTextCentered( txtMessage[ 13 ], 279, 279 + 123, 239 + ( box - 12 ) * 42 + 58, 240 );
@@ -1553,7 +1576,8 @@ begin
       end
       else if box = 14 then
       begin
-        lpDDSBack.BltFast( 279 + 13, 239 + ( box - 12 ) * 42 + 34 + 24 * ( ixSelectedHair - 8 ), DXCircle, Rect( 0, 0, 96, 21 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+        pr := Rect( 0, 0, 96, 21 );
+        lpDDSBack.BltFast( 279 + 13, 239 + ( box - 12 ) * 42 + 34 + 24 * ( ixSelectedHair - 8 ), DXCircle, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
         pText.PlotTextCentered( txtMessage[ 16 ], 279, 279 + 123, 239 + ( box - 12 ) * 42 + 34, 240 );
         pText.PlotTextCentered( txtMessage[ 17 ], 279, 279 + 123, 239 + ( box - 12 ) * 42 + 58, 240 );
         pText.PlotTextCentered( txtMessage[ 18 ], 279, 279 + 123, 239 + ( box - 12 ) * 42 + 82, 240 );
@@ -1563,7 +1587,8 @@ begin
       end
       else if box = 15 then
       begin
-        lpDDSBack.BltFast( 279 + 13, 239 + ( box - 12 ) * 42 + 34 + 24 * ( ixSelectedHairStyle - 12 ), DXCircle, Rect( 0, 0, 96, 21 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+        pr := Rect( 0, 0, 96, 21 );
+        lpDDSBack.BltFast( 279 + 13, 239 + ( box - 12 ) * 42 + 34 + 24 * ( ixSelectedHairStyle - 12 ), DXCircle, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
         pText.PlotTextCentered( txtMessage[ 20 ], 279, 279 + 123, 239 + ( box - 12 ) * 42 + 34, 240 );
         pText.PlotTextCentered( txtMessage[ 21 ], 279, 279 + 123, 239 + ( box - 12 ) * 42 + 58, 240 );
         pText.PlotTextCentered( txtMessage[ 22 ], 279, 279 + 123, 239 + ( box - 12 ) * 42 + 82, 240 );
@@ -1573,7 +1598,8 @@ begin
       end
       else if box = 16 then
       begin
-        lpDDSBack.BltFast( 279 + 13, 239 + ( box - 12 ) * 42 + 34 + 24 * ( ixSelectedBeard - 16 ) + 24, DXCircle, Rect( 0, 0, 96, 21 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+        pr := Rect( 0, 0, 96, 21 );
+        lpDDSBack.BltFast( 279 + 13, 239 + ( box - 12 ) * 42 + 34 + 24 * ( ixSelectedBeard - 16 ) + 24, DXCircle, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
         pText.PlotTextCentered( txtMessage[ 24 ], 279, 279 + 123, 239 + ( box - 12 ) * 42 + 58, 240 );
         pText.PlotTextCentered( txtMessage[ 25 ], 279, 279 + 123, 239 + ( box - 12 ) * 42 + 82, 240 );
         for i := 0 to 1 do
@@ -1582,11 +1608,8 @@ begin
 
     end; //ednif
 
-
     BoxOpen := box;
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
+    SoAOS_DX_BltFront;
   except
     on E : Exception do
       Log.log( FailName + E.Message );
@@ -1597,22 +1620,22 @@ end; //OpenBox
 procedure TCreation.DrawTheGuy;
 const
   FailName : string = 'TCreation.DrawtheGuy';
+var
+  pr : TRect;
 begin
 {$IFDEF DODEBUG}
   if ( CurrDbgLvl >= DbgLvlSevere ) then
     Log.LogEntry( FailName );
 {$ENDIF}
   try
-
-    lpDDSBack.BltFast( 110, 93, DXBack, Rect( 110, 93, 264, 227 ), DDBLTFAST_WAIT );
+    pr := Rect( 110, 93, 264, 227 );
+    lpDDSBack.BltFast( 110, 93, DXBack, @pr, DDBLTFAST_WAIT );
     SelectedShirt := shirt[ ixSelectedShirt + 1 ];
     SelectedPants := pants[ ( ixSelectedPants - 4 ) + 1 ];
     SelectedHair := hair[ ( ixSelectedHair - 8 ) + 1, ( ixSelectedHairStyle - 12 ) + 1, ( ixSelectedBeard - 16 ) + 1 ];
     if assigned( OnDraw ) then
       OnDraw( self );
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
+    SoAOS_DX_BltFront;
   except
     on E : Exception do
       Log.log( FailName + E.Message );
@@ -1623,6 +1646,8 @@ end; //DrawTheGuy
 procedure TCreation.FormMouseDown( Sender : TObject; Button : TMouseButton; Shift : TShiftState; X, Y : Integer );
 const
   FailName : string = 'TCreation.FromMouseDown';
+var
+  pr : TRect;
 begin
 {$IFDEF DODEBUG}
   if ( CurrDbgLvl >= DbgLvlSevere ) then
@@ -1633,10 +1658,13 @@ begin
     if PtInRect( rect( 318, 553, 359, 577 ), point( x, y ) ) or PtInRect( rect( 318, 510, 359, 537 ), point( x, y ) ) then
     begin
        //clean up any dimmed text
-      lpDDSBack.BltFast( 114, 237, DXBack, Rect( 114, 237, 261, 439 ), DDBLTFAST_WAIT );
+      pr := Rect( 114, 237, 261, 439 );
+      lpDDSBack.BltFast( 114, 237, DXBack, @pr, DDBLTFAST_WAIT );
        //clean up after old boxes
-      lpDDSBack.BltFast( 279, 239, DXBack, Rect( 279, 239, 402, 588 ), DDBLTFAST_WAIT );
-      lpDDSBack.BltFast( 465, 59, DXBack, Rect( 465, 59, 465 + 123, 59 + 181 ), DDBLTFAST_WAIT );
+      pr := Rect( 279, 239, 402, 588 );
+      lpDDSBack.BltFast( 279, 239, DXBack, @pr, DDBLTFAST_WAIT );
+      pr := Rect( 465, 59, 465 + 123, 59 + 181 );
+      lpDDSBack.BltFast( 465, 59, DXBack, @pr, DDBLTFAST_WAIT );
       BoxOpen := -1;
     end;
   except
@@ -1649,6 +1677,8 @@ end; //FormMouseDown
 procedure TCreation.FormMouseMove( Sender : TObject; Shift : TShiftState; X, Y : Integer );
 const
   FailName : string = 'TCreation.FormMouseMove';
+var
+  pr : TRect;
 begin
 {$IFDEF DODEBUG}
   if ( CurrDbgLvl >= DbgLvlSevere ) then
@@ -1657,9 +1687,13 @@ begin
   try
 
      //Clean up continue and cancel
-    lpDDSBack.BltFast( chaContinueRect.Left, chaContinueRect.Top, DXBack, Rect( chaContinueRect.Left, chaContinueRect.Top, chaContinueRect.Left + chaContinueRect.Right, chaContinueRect.Top + chaContinueRect.Bottom ), DDBLTFAST_WAIT );
+    pr := Rect( chaContinueRect.Left, chaContinueRect.Top, chaContinueRect.Left + chaContinueRect.Right, chaContinueRect.Top + chaContinueRect.Bottom );
+    lpDDSBack.BltFast( chaContinueRect.Left, chaContinueRect.Top, DXBack, @pr, DDBLTFAST_WAIT );
     if BoxOpen = -1 then
-      lpDDSBack.BltFast( chaCancelRect.Left, chaCancelRect.Top, DXBack, Rect( chaCancelRect.Left, chaCancelRect.Top, chaCancelRect.Left + chaCancelRect.Right, chaCancelRect.Top + chaCancelRect.Bottom ), DDBLTFAST_WAIT );
+    begin
+      pr := Rect( chaCancelRect.Left, chaCancelRect.Top, chaCancelRect.Left + chaCancelRect.Right, chaCancelRect.Top + chaCancelRect.Bottom );
+      lpDDSBack.BltFast( chaCancelRect.Left, chaCancelRect.Top, DXBack, @pr, DDBLTFAST_WAIT );
+    end;
    //clear text
     if PtinRect( rect( chaContinueRect.Left, chaContinueRect.Top, chaContinueRect.Left + chaContinueRect.Right, chaContinueRect.Top + chaContinueRect.Bottom ), point( X, Y ) ) then
     begin //over continue
@@ -1668,9 +1702,15 @@ begin
     else
     begin
       if BoxOpen = 17 then
-        lpDDSBack.BltFast( 490, 239, DXBack, Rect( 490, 239, 682, 430 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT )
+      begin
+        pr := Rect( 490, 239, 682, 430 );
+        lpDDSBack.BltFast( 490, 239, DXBack, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+      end
       else
-        lpDDSBack.BltFast( 490, 160, DXBack, Rect( 490, 160, 682, 430 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+      begin
+        pr := Rect( 490, 160, 682, 430 );
+        lpDDSBack.BltFast( 490, 160, DXBack, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+      end;
     end;
   except
     on E : Exception do

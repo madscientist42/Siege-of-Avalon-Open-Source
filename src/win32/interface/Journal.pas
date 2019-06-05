@@ -59,48 +59,40 @@ unit Journal;
 {                                                                              }
 {******************************************************************************}
 
-{$INCLUDE Anigrp30cfg.inc}
-
 interface
 
 uses
 {$IFDEF DirectX}
   DirectX,
   DXUtil,
-  DXEffects,
 {$ENDIF}
-  Windows,
-  Messages,
-  SysUtils,
-  Classes,
-  Graphics,
-  Controls,
-  Forms,
-  Dialogs,
-  jpeg,
-  iniFiles,
-  FileCtrl,
-  ExtCtrls,
-  Character,
+  System.SysUtils,
+  System.IOUtils,
+  System.Types,
+  System.Classes,
+  Vcl.Graphics,
+  Vcl.Controls,
+  Vcl.Forms,
+  Vcl.Imaging.jpeg,
+  System.IniFiles,
   Resource,
-  StdCtrls,
   GameText,
   Display,
   Anigrp30,
   AdventureLog,
   LogFile,
   Engine;
+
 type
 
   TJournal = class( TDisplay )
   private
     //Bitmap stuff
-    BMBack : TBitmap;
     DXBack : IDirectDrawSurface;
     DXPic : IDirectDrawSurface;
     PicWidth : integer;
     PicHeight : integer;
-    LogText : string;
+    LogText : AnsiString;
     CurrentLogIndex : integer;
     txtMessage : array[ 0..1 ] of string;
     procedure ShowText;
@@ -124,9 +116,14 @@ type
     procedure Init; override;
     procedure Release; override;
   end;
+
 implementation
+
 uses
+  SoAOS.Types,
+  SoAOS.Graphics.Draw,
   AniDemo;
+
 { TJournal }
 
 constructor TJournal.Create;
@@ -165,9 +162,9 @@ end; //Destroy
 
 procedure TJournal.Init;
 var
-  InvisColor : integer;
   i : integer;
   Ini : TIniFile;
+  pr : TRect;
 const
   FailName : string = 'TJournal.init';
 begin
@@ -185,7 +182,8 @@ begin
       txtMessage[ i ] := ExText.GetText( 'Message' + inttostr( i ) );
 
     MouseCursor.Cleanup;
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, ResWidth, ResHeight ), DDBLTFAST_NOCOLORKEY or DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, ResWidth, ResHeight );
+    lpDDSBack.BltFast( 0, 0, lpDDSFront, @pr, DDBLTFAST_NOCOLORKEY or DDBLTFAST_WAIT );
     MouseCursor.PlotDirty := false;
     if JournalLog.LogFileList.count - 1 > StartLogIndex then
       inc( StartLogIndex );
@@ -194,7 +192,7 @@ begin
   //JournalLog.LogDirectory:=ExtractFilePath(Application.ExeName) + 'Journal\';
     INI := TIniFile.Create( DefaultPath + 'siege.ini' );
 
-    if ( INI.readinteger( 'Settings', 'JournalFont', 0 ) = 1 ) and DirectoryExists( ArtPath + 'journalalt' ) then
+    if ( INI.readinteger( 'Settings', 'JournalFont', 0 ) = 1 ) and TDirectory.Exists( ArtPath + 'journalalt' ) then
       JournalLog.LogDirectory := ArtPath + 'journalalt\'
     else
       JournalLog.LogDirectory := ArtPath + 'journal\';
@@ -213,13 +211,8 @@ begin
     frmMain.OnMouseMove := FormMouseMove;
 
     pText.LoadFontGraphic( 'inventory' ); //load the statistics font graphic in
-    BMBack := TBitmap.Create;
-  //transparent color
-    InvisColor := $00FFFF00;
 
-    BMBack.LoadFromFile( InterfacePath + 'Journal.bmp' );
-    DXBack := DDGetImage( lpDD, BMBack, InvisColor, False );
-  //lpDDSBack.BltFast(0, 0, DXBack, Rect(0, 0, BMBack.width, BMBack.Height), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT);
+    DXBack := SoAOS_DX_LoadBMP( InterfacePath + 'Journal.bmp', cInvisColor );
 
   {//Now for the Alpha'ed edges
   BMBack.LoadFromFile(ExtractFilePath(Application.ExeName) + 'Options\Dialog-Shadow.bmp');
@@ -228,12 +221,9 @@ begin
 
   DXBorders:=nil;
   }
-    BMBack.Free;
 
     ShowText;
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
+    SoAOS_DX_BltFront;
   except
     on E : Exception do
       Log.log( FailName + E.Message );
@@ -310,7 +300,35 @@ end; //FormMouseMove
 
 procedure TJournal.MouseDown( Sender : TAniview; Button : TMouseButton; Shift : TShiftState; X, Y, GridX, GridY : integer );
 begin
-
+   begin
+  try
+  //check for clicks
+    if ptinRect( rect( 582, 575, 659, 596 ), point( x, y ) ) then
+    begin //prev
+      if CurrentLogIndex > 0 then
+      begin
+        CurrentLogIndex := CurrentLogIndex - 1;
+        ShowText;
+      end;
+    end
+    else if ptinRect( rect( 681, 575, 721, 596 ), point( x, y ) ) then
+    begin //next
+      if CurrentLogIndex < JournalLog.LogFileList.count - 1 then
+      begin
+        CurrentLogIndex := CurrentLogIndex + 1;
+        ShowText;
+      end;
+    end
+    else if ptinRect( rect( 746, 575, 786, 596 ), point( x, y ) ) then
+    begin //exit
+      Close;
+      frmMain := nil;
+    end;
+  except
+    on E : Exception do
+     exit;
+  end;
+  end;
 end; //MouseDown
 
 procedure TJournal.MouseMove( Sender : TAniview; Shift : TShiftState; X, Y, GridX, GridY : integer );
@@ -348,9 +366,10 @@ end;
 procedure TJournal.ShowText;
 var
   BM : TBitmap;
+  width, height : Integer;
   PicName : string;
   jpg : TJPEGImage;
-
+  pr : TRect;
 const
   FailName : string = 'TJournal.showtext';
 begin
@@ -363,7 +382,8 @@ begin
     if CurrentLogIndex > StartLogIndex then
       StartLogIndex := CurrentLogIndex;
   //clear screen
-    lpDDSBack.BltFast( 0, 0, DXBack, Rect( 0, 0, 800, 600 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, ScreenMetrics.ScreenWidth, ScreenMetrics.ScreenHeight );
+    lpDDSBack.BltFast( 0, 0, DXBack, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
   //Plot buttons
   //pText.PlotText('Previous',300,570,240);
   //pText.PlotText('Next',450,570,240);
@@ -372,26 +392,26 @@ begin
   //Show Latest Log
     LogText := JournalLog.ReadLogByIndex( CurrentLogIndex );
 
-    BM := TBitmap.create;
+//TODO: JPEG code should go - or be interchangable with BMP (and PNG)
   //get the pic, if it exists
     if ( CurrentLogIndex >= 0 ) and ( CurrentLogIndex < JournalLog.LogFileList.count ) then
     begin
-      if FileExists( JournalLog.LogDirectory + ChangeFileExt( JournalLog.LogFileList.strings[ CurrentLogIndex ], '.bmp' ) ) then
+      if TFile.Exists( JournalLog.LogDirectory + ChangeFileExt( JournalLog.LogFileList.strings[ CurrentLogIndex ], '.bmp' ) ) then
       begin
         PicName := JournalLog.LogDirectory + ChangeFileExt( JournalLog.LogFileList.strings[ CurrentLogIndex ], '.bmp' );
         if LogText <> '' then
           PicXY := point( 20, 20 )
         else
           PicXY := point( 0, 0 );
-        BM.LoadFromFile( PicName );
-        DXPic := DDGetImage( lpDD, BM, $00FFFF00, False );
-        PicWidth := BM.width;
-        PicHeight := BM.height;
-        lpDDSBack.BltFast( PicXY.X, PicXY.Y, DXPic, Rect( 0, 0, BM.width, BM.Height ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+        DXPic := SoAOS_DX_LoadBMP( PicName, cInvisColor, width, height );
+        PicWidth := width;
+        PicHeight := height;
+        pr := Rect( 0, 0, width, Height );
+        lpDDSBack.BltFast( PicXY.X, PicXY.Y, DXPic, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
         if LogText <> '' then
           pText.PlotTextBlockAroundBox( Logtext, 50, 750, 50, 240, rect( PicXY.X, PicXY.Y, PicXY.X + PicWidth + 20, PicXY.Y + PicHeight + 20 ) );
       end
-      else if FileExists( JournalLog.LogDirectory + ChangeFileExt( JournalLog.LogFileList.strings[ CurrentLogIndex ], '.jpg' ) ) then
+      else if TFile.Exists( JournalLog.LogDirectory + ChangeFileExt( JournalLog.LogFileList.strings[ CurrentLogIndex ], '.jpg' ) ) then
       begin
         PicName := JournalLog.LogDirectory + ChangeFileExt( JournalLog.LogFileList.strings[ CurrentLogIndex ], '.jpg' );
         if LogText <> '' then
@@ -399,19 +419,26 @@ begin
         else
           PicXY := point( 0, 0 );
 
-        jpg := TJPEGImage.create;
-        jpg.LoadFromFile( picname );
+        BM := TBitmap.create;
+        try
+          jpg := TJPEGImage.create;
+          jpg.LoadFromFile( picname );
 
-        BM.width := jpg.width;
-        BM.Height := jpg.height;
-        Bm.Canvas.Draw( 0, 0, jpg );
+          BM.width := jpg.width;
+          BM.Height := jpg.height;
+          Bm.Canvas.Draw( 0, 0, jpg );
 
-        jpg.Free;
+          jpg.Free;
 
-        DXPic := DDGetImage( lpDD, BM, $00FFFF00, False );
-        PicWidth := BM.width;
-        PicHeight := BM.height;
-        lpDDSBack.BltFast( PicXY.X, PicXY.Y, DXPic, Rect( 0, 0, BM.width, BM.Height ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+          DXPic := SoAOS_DX_SurfaceFromBMP( BM, cInvisColor );
+          PicWidth := BM.width;
+          PicHeight := BM.height;
+        finally
+          BM.Free;
+        end;
+
+        pr := Rect( 0, 0, BM.width, BM.Height );
+        lpDDSBack.BltFast( PicXY.X, PicXY.Y, DXPic, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
         if LogText <> '' then
           pText.PlotTextBlockAroundBox( Logtext, 50, 750, 50, 240, rect( PicXY.X, PicXY.Y, PicXY.X + PicWidth + 20, PicXY.Y + PicHeight + 20 ) );
       end
@@ -423,10 +450,8 @@ begin
 
     if not NoPageNumbers then
       pText.plotText( txtMessage[ 0 ] + intToStr( CurrentLogIndex + 1 ) + txtMessage[ 1 ] + IntToStr( JournalLog.LogFileList.count ), 81, 575, 255 );
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
-    BM.Free;
+    SoAOS_DX_BltFront;
+
     DXPic := nil;
   except
     on E : Exception do

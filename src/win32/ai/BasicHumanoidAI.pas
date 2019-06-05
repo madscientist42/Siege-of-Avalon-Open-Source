@@ -80,18 +80,17 @@ unit BasicHumanoidAI;
 
 interface
 
-{$INCLUDE Anigrp30cfg.inc}
-
 uses
-  Windows,
-  Classes,
-  SysUtils,
-  Graphics,
+  System.Classes,
+  System.SysUtils,
+  System.IOUTils,
+  System.Types,
+  SoAOS.Types,
   Character,
   Anigrp30,
   strFunctions,
   Resource,
-  digifx,
+  SoAOS.Graphics.Types,
   anidemo,
   spells1;
 
@@ -524,7 +523,7 @@ type
 
 function AssignHumanoidAI( AIName : string ) : TAI;
 function RangeTest( Target, Source : TAniFigure; iDist : integer ) : boolean;
-function LineOfSight( Character, Track : TAniFigure ) : boolean;
+//function LineOfSight( Character, Track : TAniFigure ) : boolean;
 function GetFacing( SrcX, SrcY, TargetX, TargetY : Longint ) : Extended;
 function GetSpellEffect( const s : string ) : TResource;
 
@@ -533,16 +532,11 @@ var
 
 implementation
 
-uses engine,
+uses
+  Engine,
   LogFile,
   Effects,
   Spells;
-
-const
-  PI = 3.1415926535;
-  pi2 = 2 * PI;
-  clRed = TColor( $0000FF );
-  clWhite = TColor( $FFFFFF );
 
 function AssignHumanoidAI( AIName : string ) : TAI;
 var
@@ -622,10 +616,10 @@ begin
 
 end;
 
-function LineOfSight( Character, Track : TAniFigure ) : boolean;
-begin
-  result := true;
-end;
+//function LineOfSight( Character, Track : TAniFigure ) : boolean;
+//begin
+//  result := true;
+//end;
 
 function GetFacing( SrcX, SrcY, TargetX, TargetY : Longint ) : Extended;
 var
@@ -702,7 +696,7 @@ begin
   //      Character.SpecialEffect:=seNone;
 
     if StandInterval > 10 then
-      if ( FrameCount mod StandInterval ) = 0 then
+      if ( FrameCount mod cardinal(StandInterval) ) = 0 then
       begin
         case Random( 2 ) of
           0 : Character.StandAction := newStand;
@@ -1036,9 +1030,9 @@ begin
             if Character.Track = Current then
             begin
               if StrPlayerSay <> '' then
-                character.Say( StrTokenAt( StrPlayerSay, ',', Random( StrTokenCount( StrPlayerSay, ',' ) ) ), clred );
+                character.Say( StrTokenAt( StrPlayerSay, ',', Random( StrTokenCount( StrPlayerSay, ',' ) ) ), cTalkRedColor );
               if StrPlayerRsp <> '' then
-                Current.Say( StrTokenAt( StrPlayerRsp, ',', Random( StrTokenCount( StrPlayerRsp, ',' ) ) ), clred );
+                Current.Say( StrTokenAt( StrPlayerRsp, ',', Random( StrTokenCount( StrPlayerRsp, ',' ) ) ), cTalkRedColor );
             end;
           except
             on E : Exception do
@@ -1049,9 +1043,9 @@ begin
             if ( Character.IsAlly( Character.Track ) ) and ( Character.Track <> Current ) then
             begin
               if StrFriendSay <> '' then
-                character.Say( StrTokenAt( StrFriendSay, ',', Random( StrTokenCount( StrFriendSay, ',' ) ) ), clred );
+                character.Say( StrTokenAt( StrFriendSay, ',', Random( StrTokenCount( StrFriendSay, ',' ) ) ), cTalkRedColor );
               if StrFriendRsp <> '' then
-                Current.Say( StrTokenAt( StrFriendRsp, ',', Random( StrTokenCount( StrFriendRsp, ',' ) ) ), clred );
+                Current.Say( StrTokenAt( StrFriendRsp, ',', Random( StrTokenCount( StrFriendRsp, ',' ) ) ), cTalkRedColor );
             end;
           except
             on E : Exception do
@@ -1061,9 +1055,9 @@ begin
             if ( Character.IsNeutral( Character.Track ) ) and ( Character.Track <> Current ) then
             begin
               if StrNeutralSay <> '' then
-                character.Say( StrTokenAt( StrNeutralSay, ',', Random( StrTokenCount( StrNeutralSay, ',' ) ) ), clred );
+                character.Say( StrTokenAt( StrNeutralSay, ',', Random( StrTokenCount( StrNeutralSay, ',' ) ) ), cTalkRedColor );
               if StrNeutralRsp <> '' then
-                Current.Say( StrTokenAt( StrNeutralRsp, ',', Random( StrTokenCount( StrNeutralRsp, ',' ) ) ), clred );
+                Current.Say( StrTokenAt( StrNeutralRsp, ',', Random( StrTokenCount( StrNeutralRsp, ',' ) ) ), cTalkRedColor );
             end;
           except
             on E : Exception do
@@ -1073,9 +1067,9 @@ begin
             if ( Character.IsEnemy( Character.Track ) ) and ( Character.Track <> Current ) then
             begin
               if StrEnemySay <> '' then
-                character.Say( StrTokenAt( StrEnemySay, ',', Random( StrTokenCount( StrEnemySay, ',' ) ) ), clred );
+                character.Say( StrTokenAt( StrEnemySay, ',', Random( StrTokenCount( StrEnemySay, ',' ) ) ), cTalkRedColor );
               if StrEnemyRsp <> '' then
-                Current.Say( StrTokenAt( StrEnemyRsp, ',', Random( StrTokenCount( StrEnemyRsp, ',' ) ) ), clred );
+                Current.Say( StrTokenAt( StrEnemyRsp, ',', Random( StrTokenCount( StrEnemyRsp, ',' ) ) ), cTalkRedColor );
             end;
           except
             on E : Exception do
@@ -1174,7 +1168,7 @@ begin
               character.AIMode := aiCombat;
 
               if CombatSay <> '' then
-                Character.Say( CombatSay, clRed );
+                Character.Say( CombatSay, cTalkRedColor );
 
               FriendList := GetPerceptibleAllies( Character, 1 );
                  //ach a bad guy... tell all my friends
@@ -1214,7 +1208,7 @@ begin
             character.AIMode := aiCombat;
 
             if CombatSay <> '' then
-              Character.Say( CombatSay, clRed );
+              Character.Say( CombatSay, cTalkRedColor );
             list.free;
           end;
         end;
@@ -1300,7 +1294,7 @@ begin
       if iLeash <> 0 then
       begin
         r := random( iLeash );
-        T := pi2 * random( 360 ) / 360;
+        T := c2PI * random( 360 ) / 360;
         X := round( r * cos( T ) ) + CenterX;
         Y := round( r * sin( T ) ) + CenterY;
       end
@@ -1642,7 +1636,7 @@ begin
       Effect.Duration := 0;
       Effect.AnimationDuration := Effect.Resource.FrameCount * Effect.Resource.FrameMultiplier;
       Character.AddEffect( Effect );
-      Effect := nil;
+///      Effect := nil;
 
     end;
 
@@ -1657,7 +1651,7 @@ begin
         TPulse( Effect ).RedMaster := StrToInt( Character.Properties[ 'ColorRed' ] );
         Character.AddTitle( 'cancelspelleffect' );
         Character.AddEffect( Effect );
-        Effect := nil;
+///        Effect := nil;
       end
       else
       begin
@@ -1668,12 +1662,9 @@ begin
         Effect.Duration := 0;
         Effect.AnimationDuration := Effect.Resource.FrameCount * Effect.Resource.FrameMultiplier;
         Character.AddEffect( Effect );
-        Effect := nil;
+///        Effect := nil;
       end;
     end;
-
-
-
 
     //Just set some inital stats that will get me past a surprise attack
     S := LowerCase( Character.Properties[ 'BalanceWithPlayer' ] );
@@ -1683,6 +1674,16 @@ begin
         i := StrToInt( s );
         if i >= 0 then
         begin
+          //Addition: Because of higher resolution you can see opponents earlier, ranged attack without counterreaction
+          if ScreenMetrics.ScreenWidth>800 then //TODO: Refactor like alot of other stuff - too much copy-paste everywhere
+          begin
+            if not Character.TitleExists('Widescreen') then
+            begin
+              Character.Vision := Character.Vision + 400;
+              Character.AddTitle('Widescreen');
+            end;
+          end;
+          // Addition
           if player.TitleExists( 'Apprentice' ) then
           begin
             character.Wounds := 0;
@@ -2105,7 +2106,7 @@ begin
   // indicator that the player should talk to this character next
     S := LowerCase( Character.Properties[ 'TalkToMe' ] );
     try
-      if ( S <> '' ) and TalkToMe and FileExists( ArtPath + 'engine\weaponprojectiles\mageblueball.pox' ) then
+      if ( S <> '' ) and TalkToMe and TFile.Exists( ArtPath + 'engine\weaponprojectiles\mageblueball.pox' ) then
       begin
 //          TalkToMeTitles := s;
         TalkToMeCount := StrTokenCount( s, '|' );
@@ -2362,7 +2363,7 @@ begin
         character.AIMode := aiCombat;
 
         if CombatSay <> '' then
-          Character.Say( CombatSay, clRed );
+          Character.Say( CombatSay, cTalkRedColor );
 
         FriendList := GetPerceptibleAllies( Character, 1 );
              //ach a bad guy... tell all my friends
@@ -2532,7 +2533,7 @@ begin
         TPulse( Effect ).GreenMaster := StrToInt( Character.Properties[ 'ColorGreen' ] );
         TPulse( Effect ).RedMaster := StrToInt( Character.Properties[ 'ColorRed' ] );
         Character.AddEffect( Effect );
-        Effect := nil;
+///        Effect := nil;
       end
       else
       begin
@@ -2544,7 +2545,7 @@ begin
         Effect.AnimationDuration := Effect.Resource.FrameCount * Effect.Resource.FrameMultiplier;
         Effect.DoAction( 'Default', Character.FacingString );
         Character.AddEffect( Effect );
-        Effect := nil;
+///        Effect := nil;
 
       end;
     end;
@@ -2709,7 +2710,7 @@ begin
       begin
         inc( CirclePoint, 45 );
         r := 100;
-        T := pi2 * CirclePoint / 360;
+        T := c2PI * CirclePoint / 360;
         X := round( r * cos( T ) ) + Character.Track.X;
         Y := round( r * sin( T ) / 2 ) + Character.Track.Y;
         Character.WalkTo( X, Y, 16 );
@@ -2793,7 +2794,7 @@ begin
           Character.Track := TCharacter( List.objects[ random( List.count ) ] );
 
         if CombatSay <> '' then
-          Character.Say( CombatSay, clRed );
+          Character.Say( CombatSay, cTalkRedColor );
 
         list.free;
       end
@@ -3141,15 +3142,38 @@ begin
         i := StrToInt( s );
         if i >= 0 then
         begin
+
+          //Addition: Because of higher resolution you can see opponents earlier, ranged attack without counterreaction
+          if ScreenMetrics.ScreenWidth>800 then //TODO: Refactor like alot of other stuff - too much copy-paste everywhere
+          begin
+            if not Character.TitleExists('Widescreen') then
+            begin
+              Character.Vision := Character.Vision + 400;
+              Character.AddTitle('Widescreen');
+            end;
+          end;
+          // Addition
+      
           if player.TitleExists( 'Apprentice' ) then
           begin
-            character.Wounds := 0;
+            Character.Wounds := 0;
             Character.Drain := 0;
-            character.Combat := ( ( ( player.Mysticism * 3 ) div 4 ) + i );
-            character.strength := ( ( player.perception * 3 ) div 4 ) + i;
+            Character.Combat := ( ( ( player.Mysticism * 3 ) div 4 ) + i );
+            Character.Strength := ( ( player.Perception * 3 ) div 4 ) + i;
+
             if not ( Character.TitleExists( 'NoHP' ) ) then
               if character.BaseHitPoints > 0 then
-                character.HitPoints := ( ( player.Perception * 2 ) * NPCList.Count );
+              begin
+                if AdjustedPartyHitPoints then
+                begin
+                  if NPCList.Count > 1 then
+                    character.HitPoints := ( ( player.Perception * 2 ) * ( NPCList.Count / 2 ) )
+                  else
+                    character.HitPoints := ( ( player.Perception * 2 ) );
+                end
+                else
+                  character.HitPoints := ( ( player.Perception * 2 ) * NPCList.Count ); // Original
+              end;
 
             character.Coordination := ( ( player.Coordination * 2 ) div 3 ) + i;
             Character.AttackRecovery := Character.AttackRecovery + ( player.attackRecovery div i );
@@ -3186,9 +3210,21 @@ begin
             Character.Drain := 0;
             character.Combat := ( ( ( player.Stealth * 3 ) div 4 ) + i );
             character.strength := ( ( player.Coordination * 3 ) div 4 ) + i;
+
             if not ( Character.TitleExists( 'NoHP' ) ) then
               if character.BaseHitPoints > 0 then
-                character.HitPoints := ( ( player.Coordination * 2 ) * NPCList.Count );
+              begin
+                if AdjustedPartyHitPoints then
+                begin
+                  if NPCList.Count > 1 then
+                    character.HitPoints := ( ( player.Coordination * 2 ) * ( NPCList.Count / 2 ) )
+                  else
+                    character.HitPoints := ( ( player.Coordination * 2 ) );
+                end
+                else
+                  character.HitPoints := ( ( player.Coordination * 2 ) * NPCList.Count ); // Original
+              end;
+
             character.Coordination := ( ( player.Coordination * 3 ) div 4 ) + i;
             Character.AttackRecovery := Character.AttackRecovery + ( player.attackRecovery div i );
 
@@ -3219,9 +3255,20 @@ begin
             character.strength := ( ( player.Strength * 3 ) div 4 ) + i;
             character.Coordination := ( ( player.Coordination * 2 ) div 3 ) + i;
             Character.AttackRecovery := Character.AttackRecovery + ( player.attackRecovery div i );
+
             if not ( Character.TitleExists( 'NoHP' ) ) then
               if character.BaseHitPoints > 0 then
-                character.HitPoints := ( ( player.strength * 2 ) * NPCList.Count );
+              begin
+                if AdjustedPartyHitPoints then
+                begin
+                  if NPCList.Count > 1 then
+                    character.HitPoints := ( ( player.Strength * 2 ) * ( NPCList.Count / 2 ) )
+                  else
+                    character.HitPoints := ( ( player.Strength * 2 ) );
+                end
+                else
+                  character.HitPoints := ( ( player.Strength * 2 ) * NPCList.Count ); // Original
+              end;
 
             if character.Resistance.Heat.Invulnerability < ( player.combat div 20 ) then
               character.Resistance.Heat.Invulnerability := ( player.combat div 20 );
@@ -3506,7 +3553,7 @@ begin
         TPulse( Effect ).GreenMaster := StrToInt( Character.Properties[ 'ColorGreen' ] );
         TPulse( Effect ).RedMaster := StrToInt( Character.Properties[ 'ColorRed' ] );
         Character.AddEffect( Effect );
-        Effect := nil;
+///        Effect := nil;
       end
       else
       begin
@@ -3518,7 +3565,7 @@ begin
         Effect.AnimationDuration := Effect.Resource.FrameCount * Effect.Resource.FrameMultiplier;
         Effect.DoAction( 'Default', Character.FacingString );
         Character.AddEffect( Effect );
-        Effect := nil;
+///        Effect := nil;
 
       end;
     end;
@@ -3746,7 +3793,7 @@ begin
       ShotCounter := 0;
       inc( CirclePoint, 45 );
       r := iDistance;
-      T := pi2 * CirclePoint / 360;
+      T := c2PI * CirclePoint / 360;
       X := round( r * cos( T ) ) + TCharacter( Character.Track ).X;
       Y := round( r * sin( T ) / 2 ) + TCharacter( Character.Track ).Y;
 
@@ -3986,6 +4033,18 @@ begin
         i := StrToInt( s );
         if i >= 0 then
         begin
+
+          //Addition: Because of higher resolution you can see opponents earlier, ranged attack without counterreaction
+          if ScreenMetrics.ScreenWidth>800 then //TODO: Refactor like alot of other stuff - too much copy-paste everywhere
+          begin
+            if not Character.TitleExists('Widescreen') then
+            begin
+              Character.Vision := Character.Vision + 400;
+              Character.AddTitle('Widescreen');
+            end;
+          end;
+          // Addition
+
           if player.TitleExists( 'Apprentice' ) then
           begin
             character.Wounds := 0;
@@ -3994,9 +4053,21 @@ begin
             character.strength := ( ( player.perception * 6 ) div 10 ) + i;
             character.Coordination := ( ( player.perception * 2 ) div 3 ) + i;
             character.Stealth := player.Mysticism + i;
+
             if not ( Character.TitleExists( 'NoHP' ) ) then
               if character.BaseHitPoints > 0 then
-                character.HitPoints := ( ( player.Perception * 2 ) * NPCList.Count );
+              begin
+                if AdjustedPartyHitPoints then
+                begin
+                  if NPCList.Count > 1 then
+                    character.HitPoints := ( ( player.Perception * 2 ) * ( NPCList.Count / 2 ) )
+                  else
+                    character.HitPoints := ( ( player.Perception * 2 ) );
+                end
+                else
+                  character.HitPoints := ( ( player.Perception * 2 ) * NPCList.Count ); // Original
+              end;
+
           end;
           if player.TitleExists( 'Hunter' ) then
           begin
@@ -4006,9 +4077,21 @@ begin
             character.strength := ( ( player.Strength * 6 ) div 10 ) + i;
             character.Coordination := ( ( player.Coordination * 2 ) div 3 ) + i;
             character.Stealth := player.Stealth + i;
+
             if not ( Character.TitleExists( 'NoHP' ) ) then
               if character.BaseHitPoints > 0 then
-                character.HitPoints := ( ( player.Coordination * 2 ) * NPCList.Count );
+              begin
+                if AdjustedPartyHitPoints then
+                begin
+                  if NPCList.Count > 1 then
+                    character.HitPoints := ( ( player.Coordination * 2 ) * ( NPCList.Count / 2 ) )
+                  else
+                    character.HitPoints := ( ( player.Coordination * 2 ) );
+                end
+                else
+                  character.HitPoints := ( ( player.Coordination * 2 ) * NPCList.Count ); // Original
+              end;
+
           end;
           if player.TitleExists( 'Squire' ) then
           begin
@@ -4018,11 +4101,22 @@ begin
             character.strength := ( ( player.Coordination * 6 ) div 10 ) + i;
             character.Coordination := ( ( player.strength * 2 ) div 3 ) + i;
             character.Stealth := player.Combat + i;
+
             if not ( Character.TitleExists( 'NoHP' ) ) then
               if character.BaseHitPoints > 0 then
-                character.HitPoints := ( ( player.strength * 2 ) * NPCList.Count );
-          end;
+              begin
+                if AdjustedPartyHitPoints then
+                begin
+                  if NPCList.Count > 1 then
+                    character.HitPoints := ( ( player.Strength * 2 ) * ( NPCList.Count / 2 ) )
+                  else
+                    character.HitPoints := ( ( player.Strength * 2 ) );
+                end
+                else
+                  character.HitPoints := ( ( player.Strength * 2 ) * NPCList.Count ); // Original
+              end;
 
+          end;
 
           if character.Resistance.Heat.Resistance < ( player.mysticism / 200 ) then
             character.Resistance.Heat.Resistance := ( player.mysticism / 200 );
@@ -4797,7 +4891,7 @@ begin
     NewSummon.AddEffect( Effect2 );
 
     MySummons.Add( NewSummon );
-    NewSummon := nil;
+///    NewSummon := nil;
 
 
   except
@@ -4925,7 +5019,7 @@ begin
       NukeCounter := 0;
       inc( CirclePoint, 45 );
       r := iDistance; //300
-      T := pi2 * CirclePoint / 360;
+      T := c2PI * CirclePoint / 360;
       X := round( r * cos( T ) ) + TCharacter( Character.Track ).X;
       Y := round( r * sin( T ) / 2 ) + TCharacter( Character.Track ).Y;
       Walking := True;
@@ -5563,7 +5657,7 @@ begin
         TPulse( Effect ).RedMaster := StrToInt( Character.Properties[ 'ColorRed' ] );
         Character.AddTitle( 'cancelspelleffect' );
         Character.AddEffect( Effect );
-        Effect := nil;
+///        Effect := nil;
       end
       else
       begin
@@ -5574,7 +5668,7 @@ begin
         Effect.Duration := 0;
         Effect.AnimationDuration := Effect.Resource.FrameCount * Effect.Resource.FrameMultiplier;
         Character.AddEffect( Effect );
-        Effect := nil;
+///        Effect := nil;
       end;
     end;
 
@@ -5601,6 +5695,18 @@ begin
         i := StrToInt( s );
         if i >= 0 then
         begin
+
+          //Addition: Because of higher resolution you can see opponents earlier, ranged attack without counterreaction
+          if ScreenMetrics.ScreenWidth>800 then //TODO: Refactor like alot of other stuff - too much copy-paste everywhere
+          begin
+            if not Character.TitleExists('Widescreen') then
+            begin
+              Character.Vision := Character.Vision + 400;
+              Character.AddTitle('Widescreen');
+            end;
+          end;
+          // Addition
+        
           if player.TitleExists( 'Apprentice' ) then
           begin
             character.Wounds := 0;
@@ -5608,14 +5714,23 @@ begin
             character.Mysticism := ( ( player.Mysticism * 3 ) div 4 ) + i;
             character.perception := ( ( player.perception * 3 ) div 4 ) + i;
             character.Coordination := ( ( player.Coordination * 3 ) div 4 ) + i;
-            if not ( Character.TitleExists( 'NoHP' ) ) then
-            begin
-              if character.BaseHitPoints > 0 then
-                if character.HitPoints > ( ( player.Perception * 2 ) ) then
-                  character.HitPoints := ( ( player.Perception * 2 ) * NPCList.Count );
-            end;
 
-            character.combat := ( ( player.combat * 3 ) div 4 );
+            if not ( Character.TitleExists( 'NoHP' ) ) then
+              if Character.BaseHitPoints > 0 then
+                if Character.HitPoints > ( Player.Perception * 2 ) then
+                begin
+                  if AdjustedPartyHitPoints then
+                  begin
+                    if NPCList.Count > 1 then
+                      character.HitPoints := ( ( player.Perception * 2 ) * ( NPCList.Count / 2 ) )
+                    else
+                      character.HitPoints := ( ( player.Perception * 2 ) );
+                  end
+                  else
+                    character.HitPoints := ( ( player.Perception * 2 ) * NPCList.Count ); // Original
+                end;
+
+            Character.combat := ( ( player.combat * 3 ) div 4 );
             Character.HitRecovery := -5;
             Character.AttackRecovery := Character.AttackRecovery + ( player.attackRecovery div i );
 
@@ -5627,14 +5742,22 @@ begin
             character.Mysticism := ( ( player.Stealth * 3 ) div 4 ) + i;
             character.perception := ( ( player.Coordination * 3 ) div 4 ) + i;
             character.Coordination := ( ( player.Coordination * 3 ) div 4 ) + i;
+
             if not ( Character.TitleExists( 'NoHP' ) ) then
-            begin
               if character.BaseHitPoints > 0 then
-                character.HitPoints := ( ( player.strength * 2 ) * NPCList.Count );
-            end;
+              begin
+                if AdjustedPartyHitPoints then
+                begin
+                  if NPCList.Count > 1 then
+                    character.HitPoints := ( ( player.Strength * 2 ) * ( NPCList.Count / 2 ) )
+                  else
+                    character.HitPoints := ( ( player.Strength * 2 ) );
+                end
+                else
+                  character.HitPoints := ( ( player.Strength * 2 ) * NPCList.Count ); // Original
+              end;
 
             character.combat := ( ( player.combat * 3 ) div 4 );
-
           end;
           if player.TitleExists( 'Squire' ) then
           begin
@@ -5645,14 +5768,22 @@ begin
             character.perception := ( ( player.Strength * 3 ) div 4 ) + i;
             character.Coordination := ( ( player.Strength * 3 ) div 4 ) + i;
             character.combat := ( ( player.combat * 3 ) div 4 );
+
             if not ( Character.TitleExists( 'NoHP' ) ) then
-            begin
               if character.BaseHitPoints > 0 then
-                character.HitPoints := ( ( player.Coordination * 2 ) * NPCList.Count );
-            end;
+              begin
+                if AdjustedPartyHitPoints then
+                begin
+                  if NPCList.Count > 1 then
+                    character.HitPoints := ( ( player.Coordination * 2 ) * ( NPCList.Count / 2 ) )
+                  else
+                    character.HitPoints := ( ( player.Coordination * 2 ) );
+                end
+                else
+                  character.HitPoints := ( ( player.Coordination * 2 ) * NPCList.Count ); // Original
+              end;
+
           end;
-
-
 
           if character.Resistance.Heat.Resistance < ( player.mysticism / 200 ) then
             character.Resistance.Heat.Resistance := ( player.mysticism / 200 );
@@ -5738,7 +5869,7 @@ begin
       FSummonGuid := '';
     end;
 
-{    if FileExists(ArtPath + 'engine\spells\SummonReceive.pox') and FileExists(ArtPath + 'engine\spells\SummonCast.pox') then
+{    if TFile.Exists(ArtPath + 'engine\spells\SummonReceive.pox') and TFile.Exists(ArtPath + 'engine\spells\SummonCast.pox') then
     begin
       FSummonResource := LoadArtResource('engine\spells\SummonReceive.gif');
       FSummonResource.Alpha := 75;
@@ -6221,7 +6352,7 @@ begin
         TPulse( Effect ).GreenMaster := StrToInt( Character.Properties[ 'ColorGreen' ] );
         TPulse( Effect ).RedMaster := StrToInt( Character.Properties[ 'ColorRed' ] );
         Character.AddEffect( Effect );
-        Effect := nil;
+///        Effect := nil;
       end
       else
       begin
@@ -6233,7 +6364,7 @@ begin
         Effect.AnimationDuration := Effect.Resource.FrameCount * Effect.Resource.FrameMultiplier;
         Effect.DoAction( 'Default', Character.FacingString );
         Character.AddEffect( Effect );
-        Effect := nil;
+///        Effect := nil;
 
       end;
     end;
@@ -6490,11 +6621,11 @@ begin
         end;
         if List.Count <> 0 then
           Character.Track := TCharacter( List.objects[ 0 ] );
-        Character.Say( 'Lets get to work', clWhite );
+        Character.Say( 'Lets get to work', cTalkWhiteColor );
 
         if Assigned( Character.Track ) then
           if TCharacter( Character.Track ).Name <> '' then
-            Character.Say( Character.Track.Name + ' your ass is mine!', clwhite )
+            Character.Say( Character.Track.Name + ' your ass is mine!', cTalkWhiteColor )
 
       end;
       list.free;
@@ -6625,6 +6756,18 @@ begin
         i := StrToInt( s );
         if i >= 0 then
         begin
+
+          //Addition: Because of higher resolution you can see opponents earlier, ranged attack without counterreaction
+          if ScreenMetrics.ScreenWidth>800 then //TODO: Refactor like alot of other stuff - too much copy-paste everywhere
+          begin
+            if not Character.TitleExists('Widescreen') then
+            begin
+              Character.Vision := Character.Vision + 400;
+              Character.AddTitle('Widescreen');
+            end;
+          end;
+          // Addition
+
           if player.TitleExists( 'Apprentice' ) then
           begin
             character.Wounds := 0;
@@ -6789,7 +6932,7 @@ begin
           inc( GoodCollideCount );
           if ( GoodCollideCount > 3 ) and Assigned( Character.track ) then
           begin
-            Character.say( 'Ok you die now!', clred );
+            Character.say( 'Ok you die now!', cTalkRedColor );
             Character.Face( target.x, target.y );
 
             Character.Track := TCharacter( target );
@@ -6803,7 +6946,7 @@ begin
           begin
             Character.Stand;
             Character.Face( Character.Track.x, Character.Track.y );
-            Character.Say( 'Get out of my way', clred );
+            Character.Say( 'Get out of my way', cTalkRedColor );
             List := GetPerceptibleAllies( Character, 2.5 );
             if Assigned( List ) then
             begin
@@ -7198,7 +7341,7 @@ begin
             Character.Track := TCharacter( List.objects[ 0 ] );
           if Assigned( Character.Track ) then
             if TCharacter( Character.Track ).Name <> '' then
-              Character.Say( Character.Track.Name + ' your ass is mine!', clwhite );
+              Character.Say( Character.Track.Name + ' your ass is mine!', cTalkWhiteColor );
           list.free;
         end;
       end;
@@ -7375,6 +7518,18 @@ begin
         i := StrToInt( s );
         if i >= 0 then
         begin
+
+          //Addition: Because of higher resolution you can see opponents earlier, ranged attack without counterreaction
+          if ScreenMetrics.ScreenWidth>800 then //TODO: Refactor like alot of other stuff - too much copy-paste everywhere
+          begin
+            if not Character.TitleExists('Widescreen') then
+            begin
+              Character.Vision := Character.Vision + 400;
+              Character.AddTitle('Widescreen');
+            end;
+          end;
+          // Addition
+
           if player.TitleExists( 'Apprentice' ) then
           begin
             character.Wounds := 0;
@@ -7558,7 +7713,7 @@ begin
       begin
         Character.Stand;
         Character.Face( Character.Track.x, Character.Track.y );
-        Character.Say( 'Get out of my way', clred );
+        Character.Say( 'Get out of my way', cTalkRedColor );
         List := GetPerceptibleAllies( Character, 2.5 );
         if Assigned( List ) then
         begin

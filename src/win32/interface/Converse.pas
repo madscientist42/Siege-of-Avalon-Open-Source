@@ -59,31 +59,18 @@ unit Converse;
 {                                                                              }
 {******************************************************************************}
 
-{$INCLUDE Anigrp30cfg.inc}
-
 interface
 
 uses
   DirectX,
-  DXUtil,
-  DXEffects,
-  Windows,
-  Messages,
-  SysUtils,
-  Classes,
-  Graphics,
-  Controls,
-  Forms,
-  Dialogs,
-  ExtCtrls,
+  System.Types,
+  System.Classes,
+  Vcl.Controls,
   Character,
-  StdCtrls,
   Display,
   Anigrp30,
-  Engine,
-  LogFile,
-  INIFiles,
-  strFunctions;
+  System.IniFiles;
+
 
 type
   TTextRect = class( TObject )
@@ -145,6 +132,14 @@ function CheckPartyOne( sTmp : string ) : boolean;
 implementation
 
 uses
+  System.SysUtils,
+  DXUtil,
+  DXEffects,
+  SoAOS.Types,
+  SoAOS.Graphics.Draw,
+  Engine,
+  LogFile,
+  strFunctions,
   AniDemo,
   Resource;
 
@@ -190,8 +185,8 @@ end;
 
 procedure TConverseBox.Init;
 var
+  width, height : Integer;
   Filename : string;
-  BM : TBitmap;
   Shadow : IDirectDrawSurface;
 const
   FailName : string = 'TConverseBox.Init';
@@ -203,23 +198,18 @@ begin
   try
     inherited;
 
-    BM := TBitmap.Create;
-    try
-      BM.LoadFromFile( InterfacePath + 'DialogueBox.bmp' );
-      Image := DDGetImage( lpDD, BM, clFuchsia, true );
-      ReEntry := True;
-      X1 := 65;
-      Y1 := 40;
-      X2 := X1 + BM.width;
-      Y2 := Y1 + BM.Height;
-    finally
-      BM.free;
-    end;
+    Image := SoAOS_DX_LoadBMP( InterfacePath + 'DialogueBox.bmp', cTransparent, width, height );
+    ReEntry := True;
+    X1 := 65;
+    Y1 := 40;
+    X2 := X1 + width;
+    Y2 := Y1 + height;
+
     HLText := -1;
     pText.LoadFontGraphic( 'Inventory' );
 
-    Filename := Parse( Conversation, 0, '.' );
-    Section := Parse( Conversation, 1, '.' );
+    Filename := Parse( AnsiString ( Conversation ), 0, '.' );
+    Section := Parse( AnsiString ( Conversation ), 1, '.' );
     if ( Filename = '' ) then
     begin
       Close;
@@ -231,21 +221,14 @@ begin
     LoadConversation;
 
   //DrawShadow
-    BM := TBitmap.Create;
+    Shadow := SoAOS_DX_LoadBMP( InterfacePath + 'DialogueBoxshadowmap.bmp', cTransparent, width, height );
     try
-      BM.LoadFromFile( InterfacePath + 'DialogueBoxshadowmap.bmp' );
-      Shadow := DDGetImage( lpDD, BM, clFuchsia, false );
-      try
-        DrawSub( lpDDSBack, Rect( X1, Y1, X2, Y2 ), Rect( 0, 0, BM.width, BM.height ), Shadow, true, 170 );
-      finally
-        Shadow := nil;
-      end;
+      DrawSub( lpDDSBack, Rect( X1, Y1, X2, Y2 ), Rect( 0, 0, width, height ), Shadow, true, 170 );
     finally
-      BM.free;
+      Shadow := nil;
     end;
-    MouseCursor.Cleanup;
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
+
+    SoAOS_DX_BltFront;
     pText.LoadTinyFontGraphic;
 
     Paint;
@@ -654,6 +637,7 @@ var
   R : TRect;
   i, j : Integer;
   W, H : integer;
+  pr : TRect;
 const
   FailName : string = 'TConverseBox.Paint';
 begin
@@ -666,7 +650,8 @@ begin
     if assigned( Image ) then
     begin
       GetSurfaceDims( W, H, Image );
-      lpDDSback.BltFast( X1, Y1, Image, Rect( 0, 0, W, H ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+      pr := Rect( 0, 0, W, H );
+      lpDDSback.BltFast( X1, Y1, Image, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
     end
     else
     begin
@@ -713,9 +698,7 @@ begin
       TTextRect( Responses.items[ i ] ).Rect := R;
       Inc( j, 10 );
     end;
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
+    SoAOS_DX_BltFront;
   except
     on E : Exception do
       Log.log( FailName, E.Message, [ ] );

@@ -59,8 +59,6 @@ unit Options;
 {                                                                              }
 {******************************************************************************}
 
-{$INCLUDE Anigrp30cfg.inc}
-
 interface
 
 uses
@@ -69,17 +67,12 @@ uses
   DXUtil,
   DXEffects,
 {$ENDIF}
-  Windows,
-  Messages,
-  SysUtils,
-  Classes,
-  Graphics,
-  Controls,
-  Forms,
-  Dialogs,
-  ExtCtrls,
+  System.SysUtils,
+  System.Types,
+  System.Classes,
+  Vcl.Controls,
+  Vcl.ExtCtrls,
   Character,
-  StdCtrls,
   GameText,
   Display,
   Anigrp30,
@@ -90,12 +83,12 @@ type
   TOptions = class( TDisplay )
   private
     //Bitmap stuff
-    BMBack : TBitmap; //The inventory screen bitmap used for loading
     DXBack : IDirectDrawSurface; //DD surface that holds the statistics screen before blit
     DXContinue : IDirectDrawSurface;
     DXYellow : IDirectDrawSurface; //used to draw lines
     DXVolumeSlider : IDirectDrawSurface;
     DXVolumeShadow : IDirectDrawSurface;
+    DXScreenResolution : IDirectDrawSurface;
     XAdj, YAdj : integer; //adjust ments for placement of the sheet
     CurrentSelectedListItem : integer;
     StartSpell : integer;
@@ -117,17 +110,24 @@ type
     SoundVolume : integer;
     MusicVolume : integer;
     PlotShadows : boolean;
+    PlotScreenRes  : Integer;
     Character : TCharacter;
     IconDX : IDirectDrawSurface;
     opContinueRect : TRect;
+    opScreenResRect : TRect;
     constructor Create;
     destructor Destroy; override;
     procedure Init; override;
     procedure Release; override;
   end;
+
 implementation
+
 uses
+  SoAOS.Types,
+  SoAOS.Graphics.Draw,
   AniDemo;
+
 { TOptions }
 
 constructor TOptions.Create;
@@ -141,6 +141,7 @@ begin
   try
     inherited;
     opContinueRect := Rect( 400, 450, 400 + 300, 450 + 45 );
+    opScreenResRect := Rect( 105, 460, 105 + 311, 460 + 26 );
   except
     on E : Exception do
       Log.log( FailName + E.Message );
@@ -166,8 +167,8 @@ end; //Destroy
 
 procedure TOptions.Init;
 var
-  InvisColor : integer;
-  i : integer;
+  i, width, height : integer;
+  pr : TRect;
 const
   FailName : string = 'TOptions.init';
 begin
@@ -181,7 +182,8 @@ begin
       Exit;
     inherited;
     MouseCursor.Cleanup;
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, ResWidth, ResHeight ), DDBLTFAST_NOCOLORKEY or DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, ResWidth, ResHeight );
+    lpDDSBack.BltFast( 0, 0, lpDDSFront, @pr, DDBLTFAST_NOCOLORKEY or DDBLTFAST_WAIT );
     MouseCursor.PlotDirty := false;
 
     ExText.Open( 'Options' );
@@ -196,34 +198,23 @@ begin
     CurrentSelectedListItem := -1;
     StartSpell := 0;
 
-
     pText.LoadFontGraphic( 'createchar' ); //load the GoldFont font graphic in
     if UseSmallFont then
       pText.LoadGoldFontGraphic;
-    BMBack := TBitmap.Create;
-  //transparent color
-    InvisColor := $00FFFF00;
-
-    BMBack.LoadFromFile( InterfacePath + 'opContinue.bmp' );
-    opContinueRect.Right := BMBack.Width;
-    opContinueRect.Bottom := BMBack.Height;
-    DXContinue := DDGetImage( lpDD, BMBack, InvisColor, False );
-    BMBack.LoadFromFile( InterfacePath + 'opYellow.bmp' );
-    DXYellow := DDGetImage( lpDD, BMBack, InvisColor, False );
-
-    BMBack.LoadFromFile( InterfacePath + 'opVolume.bmp' );
-    DXVolumeSlider := DDGetImage( lpDD, BMBack, InvisColor, False );
-    BMBack.LoadFromFile( InterfacePath + 'opVolumeShadow.bmp' );
-    DXVolumeShadow := DDGetImage( lpDD, BMBack, InvisColor, False );
-
-    BMBack.LoadFromFile( InterfacePath + 'options.bmp' );
-    DXBack := DDGetImage( lpDD, BMBack, InvisColor, False );
-
+    DXContinue := SoAOS_DX_LoadBMP( InterfacePath + 'opContinue.bmp', cInvisColor, width, height );
+    opContinueRect.Right := width;
+    opContinueRect.Bottom := height;
+    DXScreenResolution := SoAOS_DX_LoadBMP( InterfacePath + 'opScreenRes.bmp', cInvisColor, width, height );
+    opScreenResRect.Right := width;
+    opScreenResRect.Bottom := height;
+    DXYellow := SoAOS_DX_LoadBMP( InterfacePath + 'opYellow.bmp', cInvisColor );
+    DXVolumeSlider := SoAOS_DX_LoadBMP( InterfacePath + 'opVolume.bmp', cInvisColor );
+    DXVolumeShadow := SoAOS_DX_LoadBMP( InterfacePath + 'opVolumeShadow.bmp', cInvisColor );
+    DXBack := SoAOS_DX_LoadBMP( InterfacePath + 'options.bmp', cInvisColor, width, height );
 
   //now we blit the screen to the backbuffer
-    lpDDSBack.BltFast( 0, 0, DXBack, Rect( 0, 0, BMBack.width, BMBack.Height ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
-
-    BMBack.Free;
+    pr := Rect( 0, 0, width, height );
+    lpDDSBack.BltFast( 0, 0, DXBack, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
 
     PlotMenu;
 
@@ -244,6 +235,7 @@ procedure TOptions.PlotMenu;
 var
   i, j, k : integer;
   pt : Tpoint;
+  pr : TRect;
 const
   FailName : string = 'TOptions.PlotMenu';
 begin
@@ -254,25 +246,42 @@ begin
   try
 
   //clear Volume bars
-    lpDDSBack.BltFast( 116, 92, DXBack, Rect( 116, 92, 315, 105 ), DDBLTFAST_WAIT );
-    lpDDSBack.BltFast( 116, 175, DXBack, Rect( 116, 175, 315, 188 ), DDBLTFAST_WAIT );
+    SoAOS_DX_BltFastWaitXY( DXBack, Rect( 116, 92, 315, 105 ) );
+    SoAOS_DX_BltFastWaitXY( DXBack, Rect( 116, 175, 315, 188 ) );
   //clear menu
-    lpDDSBack.BltFast( 114, 259, DXBack, rect( 114, 259, 663, 431 ), DDBLTFAST_WAIT );
+    SoAOS_DX_BltFastWaitXY( DXBack, Rect( 114, 259, 663, 431 ) );
   //clear Yes/no
-    lpDDSBack.BltFast( 556, 70, DXBack, rect( 556, 70, 650, 90 ), DDBLTFAST_WAIT );
+    SoAOS_DX_BltFastWaitXY( DXBack, Rect( 556, 70, 650, 90 ) );
+  //clear resolution
+    SoAOS_DX_BltFastWaitXY( DXBack, Rect( 108, 463, 313, 483 ) );
 
     if PlotShadows then
       DrawAlpha( lpDDSBack, rect( 560, 75, 573, 86 ), rect( 0, 0, 12, 12 ), DXYellow, True, 255 )
     else
       DrawAlpha( lpDDSBack, rect( 632, 75, 645, 86 ), rect( 0, 0, 12, 12 ), DXYellow, True, 255 );
+
+    if True then  // HDAvail
+    begin
+      pr := Rect( 0, 0, opScreenResRect.Right, opScreenResRect.Bottom );
+      lpDDSBack.BltFast( opScreenResRect.Left, opScreenResRect.Top, DXScreenResolution, @pr, DDBLTFAST_WAIT );
+
+      case PlotScreenRes of
+        600 : DrawAlpha( lpDDSBack, rect( 112, 468, 125, 479 ), rect( 0, 0, 12, 12 ), DXYellow, True, 255 );
+        720 : DrawAlpha( lpDDSBack, rect( 219, 468, 232, 479 ), rect( 0, 0, 12, 12 ), DXYellow, True, 255 );
+        1080 : DrawAlpha( lpDDSBack, rect( 295, 468, 308, 479 ), rect( 0, 0, 12, 12 ), DXYellow, True, 255 );
+      end;
+    end;
+
   //Put in the volume
   //Sound FX
     DrawAlpha( lpDDSBack, rect( 116, 92, SoundVolume * 2 + 116, 105 ), rect( 0, 0, 12, 12 ), DXYellow, True, 255 );
-    lpDDSBack.BltFast( SoundVolume * 2 + 116 - 20, 103, DXVolumeSlider, rect( 0, 0, 40, 30 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, 40, 30 );
+    lpDDSBack.BltFast( SoundVolume * 2 + 116 - 20, 103, DXVolumeSlider, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
     DrawSub( lpDDSBack, rect( SoundVolume * 2 + 116 - 20, 103, SoundVolume * 2 + 116 + 20, 103 + 30 ), rect( 0, 0, 40, 30 ), DXVolumeShadow, True, 200 );
   //Music
     DrawAlpha( lpDDSBack, rect( 116, 175, MusicVolume * 2 + 116, 188 ), rect( 0, 0, 12, 12 ), DXYellow, True, 255 );
-    lpDDSBack.BltFast( MusicVolume * 2 + 116 - 20, 184, DXVolumeSlider, rect( 0, 0, 40, 30 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, 40, 30 );
+    lpDDSBack.BltFast( MusicVolume * 2 + 116 - 20, 184, DXVolumeSlider, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
     DrawSub( lpDDSBack, rect( MusicVolume * 2 + 116 - 20, 184, MusicVolume * 2 + 116 + 20, 184 + 30 ), rect( 0, 0, 40, 30 ), DXVolumeShadow, True, 200 );
 
   //Plot Text HighLight
@@ -287,11 +296,18 @@ begin
         if ( i >= StartSpell ) and ( i < StartSpell + 5 ) then
         begin //only show 10 files
             //Show a hotkey if associated
-          for k := 1 to 8 do
+//          for k := 1 to 8 do  // F3-F12
+//          begin
+//            if TSpell( SpellList.objects[ i ] ) = Character.HotKey[ k ] then
+//            begin
+//              pText.PlotText( 'F' + intToStr( k + 2 ), 611, 264 + j * 35, 240 );
+//            end;
+//          end;
+		  for k := 0 to 10 do // Keys 0-9
           begin
             if TSpell( SpellList.objects[ i ] ) = Character.HotKey[ k ] then
             begin
-              pText.PlotText( 'F' + intToStr( k + 4 ), 611, 264 + j * 35, 240 );
+              pText.PlotText( intToStr( k - 1), 611, 264 + j * 35, 240 );
             end;
           end;
             //Plot The Spell Icons
@@ -307,9 +323,7 @@ begin
         end
       end; //end for
     end;
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
+    SoAOS_DX_BltFront;
   except
     on E : Exception do
       Log.log( FailName + E.Message );
@@ -328,18 +342,23 @@ begin
 {$ENDIF}
   try
 
-   //function key f5 to f12
+   //was function key f3 to f12, now 0-9
     if Character <> nil then
     begin
-      if ( key > 115 ) and ( key < 124 ) and ( CurrentSelectedListItem <> -1 ) then
+//      if ( key > 115 ) and ( key < 124 ) and ( CurrentSelectedListItem <> -1 ) then
+if ( key > 47 ) and ( key < 58 ) and ( CurrentSelectedListItem <> -1 ) then
       begin
-        Character.HotKey[ key - 115 ] := TSpell( SpellList.objects[ CurrentSelectedListItem ] );
+//        Character.HotKey[ key - 115 ] := TSpell( SpellList.objects[ CurrentSelectedListItem ] );
+Character.HotKey[ key - 47 ] := TSpell( SpellList.objects[ CurrentSelectedListItem ] );
            //We dont want more than one key pointing at the same spell, so if allready assigned, change to nil.
-        for i := 1 to 8 do
+//        for i := 1 to 8 do
+for i := 1 to 10 do
         begin
-          if i <> key - 115 then
+//          if i <> key - 115 then
+if i <> key - 47 then
           begin
-            if Character.HotKey[ key - 115 ] = Character.HotKey[ i ] then
+//            if Character.HotKey[ key - 115 ] = Character.HotKey[ i ] then
+if Character.HotKey[ key - 47 ] = Character.HotKey[ i ] then
               Character.HotKey[ i ] := nil;
           end
         end;
@@ -425,6 +444,18 @@ begin
     begin //no
       PlotShadows := false;
     end
+    else if PtInRect( rect( 109, 464, 128, 482 ), point( x, y ) ) then
+    begin //original
+      PlotScreenRes := 600;
+    end
+    else if PtInRect( rect( 216, 464, 235, 482 ), point( x, y ) ) then
+    begin //HD
+      PlotScreenRes := 720;
+    end
+    else if PtInRect( rect( 292, 464, 311, 482 ), point( x, y ) ) then
+    begin //FullHD
+      PlotScreenRes := 1080;
+    end
     else if PtinRect( rect( 502, 450, 502 + 198, 450 + 45 ), point( X, Y ) ) then
     begin //over back button
       Close; //quit
@@ -441,7 +472,7 @@ procedure TOptions.MouseMove( Sender : TAniview; Shift : TShiftState; X, Y, Grid
 var
   i, j, k : integer;
   pt : Tpoint;
-
+  pr : TRect;
 const
   FailName : string = 'TOptions.MouseMove';
 begin
@@ -452,22 +483,33 @@ begin
   try
 
   //Clear rollover text area
-    lpDDSBack.Bltfast( 351, 113, DXBack, Rect( 351, 113, 684, 206 ), DDBLTFAST_WAIT );
+    SoAOS_DX_BltFastWaitXY( DXBack, Rect( 351, 113, 684, 206 ) );
   //clear Volume bars
-    lpDDSBack.BltFast( 100, 92, DXBack, Rect( 100, 92, 336, 155 ), DDBLTFAST_WAIT );
-    lpDDSBack.BltFast( 100, 175, DXBack, Rect( 100, 175, 336, 230 ), DDBLTFAST_WAIT );
+    SoAOS_DX_BltFastWaitXY( DXBack, Rect( 100, 92, 336, 155 ) );
+    SoAOS_DX_BltFastWaitXY( DXBack, Rect( 100, 175, 336, 230 ) );
   //clear menu
-    lpDDSBack.BltFast( 114, 259, DXBack, rect( 114, 259, 663, 434 ), DDBLTFAST_WAIT );
+    SoAOS_DX_BltFastWaitXY( DXBack, Rect( 114, 259, 663, 434 ) );
   //clear Yes/no
-    lpDDSBack.BltFast( 556, 70, DXBack, rect( 556, 70, 650, 90 ), DDBLTFAST_WAIT );
+    SoAOS_DX_BltFastWaitXY( DXBack, Rect( 556, 70, 650, 90 ) );
   //clear back To Game
-    lpDDSBack.BltFast( opContinueRect.Left, opContinueRect.Top, DXBack, Rect( opContinueRect.Left, opContinueRect.Top, opContinueRect.Left + opContinueRect.Right, opContinueRect.Top + opContinueRect.Bottom ), DDBLTFAST_WAIT );
+    SoAOS_DX_BltFastWaitXY( DXBack, Rect( opContinueRect.Left, opContinueRect.Top, opContinueRect.Left + opContinueRect.Right, opContinueRect.Top + opContinueRect.Bottom ) );
+
+    if True then  // HDAvail
+    begin
+      pr := Rect( 0, 0, opScreenResRect.Right, opScreenResRect.Bottom );
+      lpDDSBack.BltFast( opScreenResRect.Left, opScreenResRect.Top, DXScreenResolution, @pr, DDBLTFAST_WAIT );
+
+      case PlotScreenRes of
+        600 : DrawAlpha( lpDDSBack, rect( 112, 468, 125, 479 ), rect( 0, 0, 12, 12 ), DXYellow, True, 255 );
+        720 : DrawAlpha( lpDDSBack, rect( 219, 468, 232, 479 ), rect( 0, 0, 12, 12 ), DXYellow, True, 255 );
+        1080 : DrawAlpha( lpDDSBack, rect( 295, 468, 308, 479 ), rect( 0, 0, 12, 12 ), DXYellow, True, 255 );
+      end;
+    end;
 
     if PlotShadows then
       DrawAlpha( lpDDSBack, rect( 560, 75, 573, 86 ), rect( 0, 0, 12, 12 ), DXYellow, True, 255 )
     else
       DrawAlpha( lpDDSBack, rect( 632, 75, 645, 86 ), rect( 0, 0, 12, 12 ), DXYellow, True, 255 );
-
 
   //FX volume - we do mousedown check here as well for drag
     if PtInRect( Rect( 100, 88, 335, 125 ), point( x, y ) ) and ( Shift = [ ssLeft ] ) then
@@ -487,14 +529,15 @@ begin
       MusicVolume := ( X - 116 ) div 2;
     end;
 
-
   //Sound FX
     DrawAlpha( lpDDSBack, rect( 116, 92, SoundVolume * 2 + 116, 105 ), rect( 0, 0, 12, 12 ), DXYellow, True, 255 );
-    lpDDSBack.BltFast( SoundVolume * 2 + 116 - 20, 103, DXVolumeSlider, rect( 0, 0, 40, 30 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, 40, 30 );
+    lpDDSBack.BltFast( SoundVolume * 2 + 116 - 20, 103, DXVolumeSlider, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
     DrawSub( lpDDSBack, rect( SoundVolume * 2 + 116 - 20, 103, SoundVolume * 2 + 116 + 20, 103 + 30 ), rect( 0, 0, 40, 30 ), DXVolumeShadow, True, 200 );
   //Music
     DrawAlpha( lpDDSBack, rect( 116, 175, MusicVolume * 2 + 116, 188 ), rect( 0, 0, 12, 12 ), DXYellow, True, 255 );
-    lpDDSBack.BltFast( MusicVolume * 2 + 116 - 20, 184, DXVolumeSlider, rect( 0, 0, 40, 30 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, 40, 30 );
+    lpDDSBack.BltFast( MusicVolume * 2 + 116 - 20, 184, DXVolumeSlider, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
     DrawSub( lpDDSBack, rect( MusicVolume * 2 + 116 - 20, 184, MusicVolume * 2 + 116 + 20, 184 + 30 ), rect( 0, 0, 40, 30 ), DXVolumeShadow, True, 200 );
 
   //Plot Text HighLight
@@ -510,11 +553,13 @@ begin
         if ( i >= StartSpell ) and ( i < StartSpell + 5 ) then
         begin //only show 10 files
             //Show a hotkey if associated
-          for k := 1 to 8 do
+//          for k := 1 to 8 do
+for k := 1 to 10 do
           begin
             if TSpell( SpellList.objects[ i ] ) = Character.HotKey[ k ] then
             begin
-              pText.PlotText( 'F' + intToStr( k + 4 ), 611, 264 + j * 35, 240 );
+//              pText.PlotText( 'F' + intToStr( k + 4 ), 611, 264 + j * 35, 240 );
+pText.PlotText( intToStr( k - 1 ), 611, 264 + j * 35, 240 );
             end;
           end;
             //Plot The Spell Icons
@@ -532,7 +577,8 @@ begin
 
     if PtinRect( rect( opContinueRect.Left, opContinueRect.Top, opContinueRect.Left + opContinueRect.Right, opContinueRect.Top + opContinueRect.Bottom ), point( X, Y ) ) then
     begin //over continue
-      lpDDSBack.BltFast( opContinueRect.Left, opContinueRect.Top, DXContinue, Rect( 0, 0, opContinueRect.Right, opContinueRect.Bottom ), DDBLTFAST_WAIT );
+      pr := Rect( 0, 0, opContinueRect.Right, opContinueRect.Bottom );
+      lpDDSBack.BltFast( opContinueRect.Left, opContinueRect.Top, DXContinue, @pr, DDBLTFAST_WAIT );
     end
     else
     begin
@@ -566,10 +612,7 @@ begin
       end;
     end;
 
-
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
+    SoAOS_DX_BltFront;
   except
     on E : Exception do
       Log.log( FailName + E.Message );
@@ -605,6 +648,7 @@ begin
     DXYellow := nil;
     DXVolumeSlider := nil;
     DXVolumeShadow := nil;
+    DXScreenResolution := nil;
 
     inherited;
   except
@@ -627,18 +671,20 @@ procedure TOptions.TimerEvent( Sender : TObject );
     end;
     if Character <> nil then
     begin
-      lpDDSBack.BltFast( 114, 259, DXBack, rect( 114, 259, 663, 434 ), DDBLTFAST_WAIT );
+      SoAOS_DX_BltFastWaitXY( DXBack, Rect( 114, 259, 663, 434 ) );
       j := 0;
       for i := 0 to SpellList.count - 1 do
       begin
         if ( i >= StartSpell ) and ( i < StartSpell + 5 ) then
         begin //only show 10 files
               //Show a hotkey if associated
-          for k := 1 to 8 do
+//          for k := 1 to 8 do
+for k := 1 to 10 do
           begin
             if TSpell( SpellList.objects[ i ] ) = Character.HotKey[ k ] then
             begin
-              pText.PlotText( 'F' + intToStr( k + 4 ), 611, 264 + j * 35, 240 );
+//              pText.PlotText( 'F' + intToStr( k + 4 ), 611, 264 + j * 35, 240 );
+pText.PlotText( intToStr( k - 1 ), 611, 264 + j * 35, 240 );
             end;
           end;
               //Plot The Spell Icons
@@ -648,9 +694,7 @@ procedure TOptions.TimerEvent( Sender : TObject );
           j := j + 1;
         end
       end; //end for
-      lpDDSFront.Flip( nil, DDFLIP_WAIT );
-      lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-      MouseCursor.PlotDirty := false;
+      SoAOS_DX_BltFront;
     end;
   end;
 
@@ -659,7 +703,8 @@ var
 begin
   if ScrollState < 0 then
   begin
-    GetCursorPos( P );
+//    GetCursorPos( P );
+    P := Mouse.CursorPos;
     if PtinRect( rect( 670, 319, 690, 333 ), P ) then
     begin //up arrow
       if ScrollState < -1 then
@@ -680,7 +725,8 @@ begin
   end
   else if ScrollState > 0 then
   begin
-    GetCursorPos( P );
+    // GetCursorPos( P );
+    P := Mouse.CursorPos;
     if PtinRect( rect( 670, 352, 690, 365 ), P ) then
     begin //down arrow
       if ScrollState > 1 then

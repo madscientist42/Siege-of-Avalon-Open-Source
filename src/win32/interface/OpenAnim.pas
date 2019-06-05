@@ -59,8 +59,6 @@ unit OpenAnim;
 {                                                                              }
 {******************************************************************************}
 
-{$INCLUDE Anigrp30cfg.inc}
-
 interface
 
 uses
@@ -69,32 +67,23 @@ uses
   DXUtil,
   DXEffects,
 {$ENDIF}
-  Windows,
-  MMSystem,
-  Messages,
-  SysUtils,
-  Classes,
-  Graphics,
-  Controls,
-  Forms,
-  Dialogs,
-  ExtCtrls,
-  Character,
-  StdCtrls,
+  System.SysUtils,
+  System.Types,
+  System.Classes,
+  Vcl.Controls,
+  Vcl.Forms,
   Display,
   Anigrp30,
-  math,
   Music,
   Resource,
-  logfile;
-  
+  LogFile;
+
 type
   TOpenAnim = class( TDisplay )
   private
     LoopCounter : integer;
     KeepOnPlaying : boolean;
     //Bitmap stuff
-    BMBack : TBitmap;
     DXBack : IDirectDrawSurface;
     DXSiege : IDirectDrawSurface;
     DXLogo : IDirectDrawSurface;
@@ -113,9 +102,14 @@ type
     procedure Release; override;
     property Cancel : boolean read FCancel;
   end;
+
 implementation
+
 uses
+  SoAOS.Types,
+  SoAOS.Graphics.Draw,
   AniDemo;
+
 { TOpenAnim }
 
 constructor TOpenAnim.Create;
@@ -154,8 +148,7 @@ end; //Destroy
 
 procedure TOpenAnim.Init;
 var
-  InvisColor : integer;
-
+  pr : TRect;
 const
   FailName : string = 'TOpenAnim.init';
 begin
@@ -173,7 +166,7 @@ begin
     if assigned( pMusic ) then
     begin
   //  sndPlaySound(PChar(SoundPath + 'Theme\IntroTitle.wav'),1);
-      pMusic.OpenThisSong( SoundPath + 'Theme\IntroTitle.MP3' );
+      pMusic.OpenThisSong( AnsiString ( SoundPath + 'Theme\IntroTitle.MP3' ) );
       pMusic.PlayThisSong;
       pMusic.SetSongVolume( 99 );
     end;
@@ -181,27 +174,15 @@ begin
     XAdj := 0;
     YAdj := -20;
 
-    BMBack := TBitmap.Create;
-  //transparent color
-    InvisColor := $00FFFF00;
-
-    BMBack.LoadFromFile( InterfacePath + 'aniSiege.bmp' );
-    DXSiege := DDGetImage( lpDD, BMBack, InvisColor, false );
-
-    BMBack.LoadFromFile( InterfacePath + 'aniDTIPresents.bmp' );
-    DXLogo := DDGetImage( lpDD, BMBack, InvisColor, false );
-
-    BMBack.LoadFromFile( InterfacePath + 'aniBack.bmp' );
-    DXBack := DDGetImage( lpDD, BMBack, InvisColor, true );
-    lpDDSBack.BltFast( 0, 0, DXBack, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-
-    BMBack.Free;
+    DXSiege := SoAOS_DX_LoadBMP( InterfacePath + 'aniSiege.bmp', cInvisColor );
+    DXLogo := SoAOS_DX_LoadBMP( InterfacePath + 'aniDTIPresents.bmp', cInvisColor );
+    DXBack := SoAOS_DX_LoadBMP( InterfacePath + 'aniBack.bmp', cInvisColor );
+    pr := Rect( 0, 0, 800, 600 ); //NOHD
+    lpDDSBack.BltFast( 0, 0, DXBack, @pr, DDBLTFAST_WAIT );
 
   //DrawAlpha(lpDDSBack,rect(0,0,800,600),rect(0,0,25,25),DXSiege,false,255);
   //DrawSub(lpDDSBack,rect(0,0,800,600),rect(0,0,25,25),DXSiege,false,255);
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-
+    SoAOS_DX_BltFront;
     KeepOnPlaying := true;
     PlayAnim;
   except
@@ -271,6 +252,7 @@ var
   MusicStartTime : Longword;
   StartFinalCount : Longword;
   i : integer;
+  pr : TRect;
 const
   FailName : string = 'TOpenAnim.PlayAnim';
 begin
@@ -280,10 +262,11 @@ begin
 {$ENDIF}
   try
     StartFinalCount := 0;
-    lpDDSBack.BltFast( 0, 0, DXBack, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, 800, 600 );  //NOHD
+    lpDDSBack.BltFast( 0, 0, DXBack, @pr, DDBLTFAST_WAIT );
     MusicStillPlaying := true;
-    MusicStartTime := GetTickCount;
-    OldTime := GetTickCount;
+    MusicStartTime := TThread.GetTickCount;
+    OldTime := TThread.GetTickCount;
     Adj := 0;
     Alpha := 0;
     Phase := 0;
@@ -291,7 +274,7 @@ begin
     begin
       if MusicStillPlaying then
       begin
-        if GetTickCount - MusicStartTime > 19500 then
+        if TThread.GetTickCount - MusicStartTime > 19500 then
         begin
                //pMusic.PauseThisSong;
           MusicStillPlaying := false;
@@ -301,7 +284,7 @@ begin
       end;
       if Phase = 0 then
       begin
-        TimeDif := GetTickCount - OldTime;
+        TimeDif := TThread.GetTickCount - OldTime;
         if TimeDif > 1980 then
         begin
           Phase := 1;
@@ -310,14 +293,14 @@ begin
       else if Phase = 1 then
       begin
         application.ProcessMessages;
-        TimeDif := GetTickCount - OldTime;
+        TimeDif := TThread.GetTickCount - OldTime;
         if Alpha < 100 then
           Adj := Adj + 24 * ( TimeDif / 1000 )
         else if Alpha < 200 then
           Adj := Adj + 92 * ( TimeDif / 1000 )
         else
           Adj := Adj + 172 * ( TimeDif / 1000 );
-        OldTime := GetTickCount;
+        OldTime := TThread.GetTickCount;
         if Adj >= 1 then
         begin
           Alpha := Alpha + round( Adj );
@@ -327,7 +310,7 @@ begin
           application.ProcessMessages;
           for i := 0 to 11 do
           begin
-            DrawAlpha( lpDDSBack, Rect( 0, 250 + i * 19, 800, 250 + i * 19 + 19 ), rect( 0, i * 19, 800, i * 19 + 19 ), DXLogo, true, Alpha );
+            DrawAlpha( lpDDSBack, Rect( 0, 250 + i * 19, 800, 250 + i * 19 + 19 ), rect( 0, i * 19, 800, i * 19 + 19 ), DXLogo, true, Alpha );  //NOHD
             application.processmessages;
           end;
           application.ProcessMessages;
@@ -335,7 +318,7 @@ begin
           application.ProcessMessages;
           lpDDSFront.Flip( nil, DDFLIP_WAIT );
           application.ProcessMessages;
-          lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
+          SoAOS_DX_BltFastWaitXY( lpDDSFront, Rect( 0, 0, ScreenMetrics.ScreenWidth, ScreenMetrics.ScreenHeight ) );
           application.ProcessMessages;
         end;
         if Alpha >= 254 then
@@ -347,12 +330,12 @@ begin
       end
       else if Phase = 2 then
       begin
-        TimeDif := GetTickCount - OldTime;
+        TimeDif := TThread.GetTickCount - OldTime;
         if Alpha > 100 then
           Adj := Adj + 92 * ( TimeDif / 1000 )
         else
           Adj := Adj + 62 * ( TimeDif / 1000 );
-        OldTime := GetTickCount;
+        OldTime := TThread.GetTickCount;
         if Adj >= 1 then
         begin
           application.ProcessMessages;
@@ -361,14 +344,15 @@ begin
           if Alpha < 0 then
             Alpha := 0;
           application.ProcessMessages;
-          lpDDSBack.BltFast( 0, 250, DXBack, Rect( 0, 250, 800, 250 + 228 ), DDBLTFAST_WAIT );
+          pr := Rect( 0, 250, 800, 250 + 228 );  //NOHD
+          lpDDSBack.BltFast( 0, 250, DXBack, @pr, DDBLTFAST_WAIT );
           application.ProcessMessages;
           if Alpha > 0 then
           begin
 //                    DrawAlpha(lpDDSBack,Rect(0, 250, 800, 250+228),rect(0,0,800,228),DXLogo,true,Alpha);
             for i := 0 to 11 do
             begin
-              DrawAlpha( lpDDSBack, Rect( 0, 250 + i * 19, 800, 250 + i * 19 + 19 ), rect( 0, i * 19, 800, i * 19 + 19 ), DXLogo, true, Alpha );
+              DrawAlpha( lpDDSBack, Rect( 0, 250 + i * 19, 800, 250 + i * 19 + 19 ), rect( 0, i * 19, 800, i * 19 + 19 ), DXLogo, true, Alpha ); //NOHD
               application.processmessages;
             end;
           end;
@@ -377,7 +361,7 @@ begin
           Adj := Adj - Trunc( Adj );
           lpDDSFront.Flip( nil, DDFLIP_WAIT );
           application.ProcessMessages;
-          lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
+          SoAOS_DX_BltFastWaitXY( lpDDSFront, Rect( 0, 0, ScreenMetrics.ScreenWidth, ScreenMetrics.ScreenHeight ) );
           application.ProcessMessages;
         end;
         if Alpha <= 0 then
@@ -385,21 +369,21 @@ begin
           Phase := 3;
           Adj := 0;
           Alpha := 0;
-          OldTime := GetTickCount;
+          OldTime := TThread.GetTickCount;
         end;
       end
       else if Phase = 3 then
       begin
-        TimeDif := GetTickCount - OldTime;
+        TimeDif := TThread.GetTickCount - OldTime;
         if TimeDif > 1500 then
         begin
           Phase := 4;
-          StartFinalCount := GetTickCount;
+          StartFinalCount := TThread.GetTickCount;
         end;
       end
       else if Phase = 4 then
       begin
-        TimeDif := GetTickCount - OldTime;
+        TimeDif := TThread.GetTickCount - OldTime;
         if Alpha < 100 then
           Adj := Adj + 20 * ( TimeDif / 1000 )
         else if Alpha < 200 then
@@ -407,7 +391,7 @@ begin
         else
           Adj := Adj + 172 * ( TimeDif / 1000 );
 
-        OldTime := GetTickCount;
+        OldTime := TThread.GetTickCount;
         if Adj >= 1 then
         begin
           application.ProcessMessages;
@@ -427,10 +411,10 @@ begin
           application.ProcessMessages;
           lpDDSFront.Flip( nil, DDFLIP_WAIT );
           application.ProcessMessages;
-          lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
+          SoAOS_DX_BltFastWaitXY( lpDDSFront, Rect( 0, 0, ScreenMetrics.ScreenWidth, ScreenMetrics.ScreenHeight ) );
           application.ProcessMessages;
         end;
-        if GetTickCount - StartFinalCount > 9000 then
+        if TThread.GetTickCount - StartFinalCount > 9000 then
         begin
           KeepOnPlaying := false;
           if assigned( pMusic ) then

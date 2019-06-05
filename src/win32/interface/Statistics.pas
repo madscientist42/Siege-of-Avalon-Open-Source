@@ -59,34 +59,19 @@ unit Statistics;
 {                                                                              }
 {******************************************************************************}
 
-{$INCLUDE Anigrp30cfg.inc}
-
 interface
 
 uses
 {$IFDEF DirectX}
   DirectX,
-  DXUtil,
-  DXEffects,
 {$ENDIF}
-  Windows,
-  Messages,
-  SysUtils,
-  Classes,
-  Graphics,
-  Controls,
-  Forms,
-  Dialogs,
-  ExtCtrls,
+  System.Types,
+  System.Classes,
+  Vcl.Controls,
   Character,
-  StdCtrls,
-  GameText,
   Display,
-  Anigrp30,
-  Engine,
-  Resource,
-  Logfile;
-  
+  Anigrp30;
+
 type
   InformationRect = record
     rect : TRect;
@@ -96,7 +81,6 @@ type
 
   TStatistics = class( TDisplay )
   private
-    BMBack : TBitmap; //The inventory screen bitmap used for loading
     DXBack : IDirectDrawSurface; //DD surface that holds the statistics screen before blit
     DXRightArrow : IDirectDrawSurface;
     DXLeftArrow : IDirectDrawSurface;
@@ -117,7 +101,7 @@ type
     BaseCombat : integer;
     BaseStealth : integer;
     TrainingPoints : integer;
-    txtMessage : array[ 0..64 ] of string;
+    txtMessage : array[ 0..64 ] of string;  //Why 65 in soaos?
     procedure ArrowInfo( i : integer ); //info can change
     procedure LoadBaseValues; //saves the base stats of the character
     procedure LoadNames;
@@ -140,14 +124,25 @@ type
     procedure Release; override;
   end;
 
-
 implementation
+
 uses
-  AniDemo;
+  SoAOS.Types,
+  SoAOS.Graphics.Draw,
+  AniDemo,
+{$IFDEF DirectX}
+  DXUtil,
+  DXEffects,
+{$ENDIF}
+  System.SysUtils,
+  GameText,
+  Engine,
+  Resource,
+  Logfile;
+
 const
   TRAININGJUMP : integer = 10;
   TRAININGBASE : integer = 20;
-
 
 { TStatistics }
 
@@ -160,13 +155,11 @@ begin
     Log.LogEntry( FailName );
 {$ENDIF}
   try
-
     inherited;
   except
     on E : Exception do
       Log.log( FailName + E.Message );
   end;
-
 end;
 
 destructor TStatistics.Destroy;
@@ -178,21 +171,18 @@ begin
     Log.LogEntry( FailName );
 {$ENDIF}
   try
-
     inherited;
   except
     on E : Exception do
       Log.log( FailName + E.Message );
   end;
-
 end;
-
 
 procedure TStatistics.Init;
 var
-  InvisColor : Integer; //Transparent color :RGB(0,255,255)
   DXBorder : IDirectDrawSurface;
-  i : integer;
+  i, width, height : integer;
+  pr : TRect;
 const
   FailName : string = 'TStatistics.init';
 begin
@@ -201,12 +191,12 @@ begin
     Log.LogEntry( FailName );
 {$ENDIF}
   try
-
     if Loaded then
       Exit;
     inherited;
     MouseCursor.Cleanup;
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, ResWidth, ResHeight ), DDBLTFAST_NOCOLORKEY or DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, ResWidth, ResHeight );
+    lpDDSBack.BltFast( 0, 0, lpDDSFront, @pr, DDBLTFAST_NOCOLORKEY or DDBLTFAST_WAIT );
     MouseCursor.PlotDirty := false;
 
     ExText.Open( 'Statistics' );
@@ -218,57 +208,36 @@ begin
     LoadNames;
     CreateCollisionRects;
     LoadBaseValues;
-    BMBack := TBitmap.Create;
-  //transparent color
-    InvisColor := $00FFFF00;
+
   //Load the Background Bitmap and plot it
 {$IFDEF DirectX}
-//  BMBack.LoadFromFile(ExtractFilePath(Application.ExeName) + '\BaseInterface.bmp');
-//  DXBack := DDGetImage(lpDD, BMBack, InvisColor, False);
-//  lpDDSBack.BltFast(0,0,DXBack,rect(0,0,800,600),DDBLTFAST_WAIT);
-    BMBack.LoadFromFile( InterfacePath + 'staRightArrow.bmp' );
-    DXRightArrow := DDGetImage( lpDD, BMBack, InvisColor, False );
-    BMBack.LoadFromFile( InterfacePath + 'staLeftArrow.bmp' );
-    DXLeftArrow := DDGetImage( lpDD, BMBack, InvisColor, False );
-    BMBack.LoadFromFile( InterfacePath + 'staBackToGame.bmp' );
-    DXBackToGame := DDGetImage( lpDD, BMBack, InvisColor, False );
-
-    BMBack.LoadFromFile( InterfacePath + 'Statistics.bmp' );
-    DXBack := DDGetImage( lpDD, BMBack, InvisColor, False );
+    DXRightArrow := SoAOS_DX_LoadBMP( InterfacePath + 'staRightArrow.bmp', cInvisColor );
+    DXLeftArrow := SoAOS_DX_LoadBMP( InterfacePath + 'staLeftArrow.bmp', cInvisColor );
+    DXBackToGame := SoAOS_DX_LoadBMP( InterfacePath + 'staBackToGame.bmp', cInvisColor );
+    DXBack := SoAOS_DX_LoadBMP( InterfacePath + 'Statistics.bmp', cInvisColor, width, height );
   //Plot the arrows on the background
     for i := 0 to 15 do
     begin
       if i < 8 then
-        //DXBack.BltFast(ArrowRect[i].rect.left, ArrowRect[i].rect.top, DXLeftArrow, Rect(0, 0, 20, 15), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT) //plot the highlight
         DrawAlpha( DXBack, rect( ArrowRect[ i ].rect.left, ArrowRect[ i ].rect.top, ArrowRect[ i ].rect.left + 20, ArrowRect[ i ].rect.top + 15 ), rect( 0, 0, 20, 15 ), DXLeftArrow, True, 100 )
       else
         DrawAlpha( DXBack, rect( ArrowRect[ i ].rect.left - 4, ArrowRect[ i ].rect.top, ArrowRect[ i ].rect.left - 4 + 20, ArrowRect[ i ].rect.top + 15 ), rect( 0, 0, 20, 15 ), DXRightArrow, True, 100 );
-        //DXBack.BltFast(ArrowRect[i].rect.left-4, ArrowRect[i].rect.top, DXRightArrow, Rect(0, 0, 20, 15), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT); //plot the highlight
     end; //end for
 
-    lpDDSBack.BltFast( 0, 0, DXBack, Rect( 0, 0, BMBack.width, BMBack.Height ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, width, height );
+    lpDDSBack.BltFast( 0, 0, DXBack, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
   //Now for the Alpha'ed edges
-    BMBack.LoadFromFile( InterfacePath + 'staRightshad.bmp' );
-    DXBorder := DDGetImage( lpDD, BMBack, InvisColor, False );
-    DrawSub( lpDDSBack, Rect( 647, 0, 647 + BMBack.Width, BMBack.Height ), Rect( 0, 0, BMBack.Width, BMBack.Height ), DXBorder, True, 128 );
-
+    DXBorder := SoAOS_DX_LoadBMP( InterfacePath + 'staRightshad.bmp', cInvisColor, width, height );
+    DrawSub( lpDDSBack, Rect( 647, 0, 647 + width, height ), Rect( 0, 0, width, height ), DXBorder, True, 128 );
     DXBorder := nil;
 
-    BMBack.LoadFromFile( InterfacePath + 'staBottomshad.bmp' );
-    DXBorder := DDGetImage( lpDD, BMBack, InvisColor, False );
-    DrawSub( lpDDSBack, Rect( 0, 455, BMBack.Width, 455 + BMBack.Height ), Rect( 0, 0, BMBack.Width, BMBack.Height ), DXBorder, True, 128 );
-
+    DXBorder := SoAOS_DX_LoadBMP( InterfacePath + 'staBottomshad.bmp', cInvisColor, width, height );
+    DrawSub( lpDDSBack, Rect( 0, 455, width, 455 + height ), Rect( 0, 0, width, height ), DXBorder, True, 128 );
     DXBorder := nil; //release DXBorder
-{$ENDIF}
 
-{$IFDEF DirectX}
-  //release the bitmap
-    BMBack.Free;
     ShowStats;
   //Whew! Now we flip it all to the screen
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
+    SoAOS_DX_BltFront;
 {$ENDIF}
   except
     on E : Exception do
@@ -574,6 +543,7 @@ var
     ManaMinMsg,
     ManaHrMsg : string;
   Rate : double;
+  pr : TRect;
 const
   FailName : string = 'TStatistics.MouseMove';
 begin
@@ -583,12 +553,12 @@ begin
 {$ENDIF}
   try
 
-     //Clean up arrows and back to game
-    lpDDSBack.BltFast( 103, 105, DXBack, Rect( 103, 105, 123, 321 ), DDBLTFAST_WAIT );
-    lpDDSBack.BltFast( 188, 105, DXBack, Rect( 188, 105, 210, 315 ), DDBLTFAST_WAIT );
-    lpDDSBack.BltFast( 581, 414, DXBack, Rect( 581, 414, 581 + 81, 414 + 57 ), DDBLTFAST_WAIT );
-   //clear text
-    lpDDSBack.BltFast( 10, 338, DXBack, Rect( 10, 338, 587, 470 ), DDBLTFAST_WAIT );
+    //Clean up arrows and back to game
+    SoAOS_DX_BltFastWaitXY( DXBack, Rect( 103, 105, 123, 321 ) );
+    SoAOS_DX_BltFastWaitXY( DXBack, Rect( 188, 105, 210, 315 ) );
+    SoAOS_DX_BltFastWaitXY( DXBack, Rect( 581, 414, 581 + 81, 414 + 57 ) );
+    //clear text
+    SoAOS_DX_BltFastWaitXY( DXBack, Rect( 10, 338, 587, 470 ) );
     i := 0;
     j := 0;
     while i < 16 do
@@ -596,10 +566,11 @@ begin
       if ptInRect( ArrowRect[ i ].rect, point( X, Y ) ) then
       begin //if over an Arrow
         ArrowInfo( i );
+        pr := Rect( 0, 0, 20, 15 );
         if i < 8 then
-          lpDDSBack.BltFast( ArrowRect[ i ].rect.left, ArrowRect[ i ].rect.top, DXLeftArrow, Rect( 0, 0, 20, 15 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT ) //plot the highlight
+          lpDDSBack.BltFast( ArrowRect[ i ].rect.left, ArrowRect[ i ].rect.top, DXLeftArrow, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT ) //plot the highlight
         else
-          lpDDSBack.BltFast( ArrowRect[ i ].rect.left - 4, ArrowRect[ i ].rect.top, DXRightArrow, Rect( 0, 0, 20, 15 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT ); //plot the highlight
+          lpDDSBack.BltFast( ArrowRect[ i ].rect.left - 4, ArrowRect[ i ].rect.top, DXRightArrow, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT ); //plot the highlight
         if UseSmallFont then
           pText.PlotTinyTextBlock( ArrowRect[ i ].Info, 10, 587, 376, 240 )
         else
@@ -682,13 +653,12 @@ begin
       if PtinRect( rect( 581, 414, 581 + 81, 414 + 57 ), point( X, Y ) ) then
       begin //over back button
          //plot highlighted back to game
-        lpDDSBack.BltFast( 581, 414, DXBackToGame, Rect( 0, 0, 81, 57 ), DDBLTFAST_WAIT );
+        pr := Rect( 0, 0, 81, 57 );
+        lpDDSBack.BltFast( 581, 414, DXBackToGame, @pr, DDBLTFAST_WAIT );
       end;
     end;
 
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
+    SoAOS_DX_BltFront;
   except
     on E : Exception do
       Log.log( FailName + E.Message );
@@ -717,6 +687,8 @@ end;
 procedure TStatistics.Paint;
 const
   FailName : string = 'TStatistics.paint';
+var
+  pr : TRect;
 begin
 {$IFDEF DODEBUG}
   if ( CurrDbgLvl >= DbgLvlSevere ) then
@@ -725,12 +697,11 @@ begin
   try
 
   //clear the back down to the text - but dont clear the info block
-    lpDDSBack.BltFast( 0, 0, DXBack, Rect( 0, 0, 677, 367 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, 677, 367 );
+    lpDDSBack.BltFast( 0, 0, DXBack, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
   //replot the entire screen statistics
     ShowStats;
-    lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 0, 0, lpDDSFront, Rect( 0, 0, 800, 600 ), DDBLTFAST_WAIT );
-    MouseCursor.PlotDirty := false;
+    SoAOS_DX_BltFront;
   except
     on E : Exception do
       Log.log( FailName + E.Message );
@@ -742,7 +713,6 @@ procedure TStatistics.CreateCollisionRects;
 var
   i, j : integer;
   LineHeight : integer;
-  a : string;
 const
   FailName : string = 'TStatistics.CreateCollisonrects';
 begin
@@ -991,11 +961,11 @@ begin
     StatName[ 1 ][ 4 ] := txtMessage[ 11 ]; //'Heat';
     StatName[ 1 ][ 5 ] := txtMessage[ 12 ]; //'Cold';
     StatName[ 1 ][ 6 ] := txtMessage[ 13 ]; //'Electric';
-    StatName[ 1 ][ 7 ] := txtMessage[ 15 ]; //'Poison'; //Now Magic
-    StatName[ 1 ][ 8 ] := txtMessage[ 17 ]; //'Magic';  //Now Stun
-//  StatName[1][9]:=txtMessage[16];//'Mental';
-//  StatName[1][10]:=txtMessage[17];//'Stun';
-//  StatName[1][11]:=txtMessage[18];//'Special';
+    StatName[ 1 ][ 7 ] := txtMessage[ 15 ]; //'Magic';
+    StatName[ 1 ][ 8 ] := txtMessage[ 17 ]; //'Stun';
+    StatName[ 1 ][ 9 ] := txtMessage[ 18 ]; //'Special';
+    //StatName[ 1 ][ 10 ] :=txtMessage[ 15 ]; //'Poison';
+    StatName[ 1 ][ 11 ] := txtMessage[ 16 ]; //'Mental';
   except
     on E : Exception do
       Log.log( FailName + E.Message );
@@ -1277,10 +1247,11 @@ begin
     InfoRect[ ix + 55 ].info := txtMessage[ 19 ] + a + txtMessage[ 20 ] + StatName[ 1 ][ 8 ] + txtMessage[ 21 ];
     InfoRect[ ix + 55 + 11 ].info := txtMessage[ 22 ] + b + txtMessage[ 23 ] + StatName[ 1 ][ 8 ] + txtMessage[ 21 ];
 
-    InfoRect[ ix + 56 ].Disabled := true;
+{    InfoRect[ ix + 56 ].Disabled := true;
     InfoRect[ ix + 56 + 11 ].Disabled := true;
     InfoRect[ ix + 57 ].Disabled := true;
-    InfoRect[ ix + 57 + 11 ].Disabled := true;
+    InfoRect[ ix + 57 + 11 ].Disabled := true;}
+ //TODO: Checkout on correct statnames between translations
 {   i:=i+24;
    str(Round(Character.resistance.mental.Invulnerability),a);
    pText.PlotText(a,451,i,Alpha);
@@ -1296,6 +1267,22 @@ begin
    pText.PlotText(b,490,i,Alpha);
    InfoRect[ix+57].info:=txtMessage[19]+ a +txtMessage[20]+ StatName[1][10]+ txtMessage[21];
    InfoRect[ix+57+11].info:=txtMessage[22]+ a +txtMessage[23]+ StatName[1][10]+ txtMessage[21];  }
+   
+   i:=i+24;
+   str(Round(Character.resistance.poison.Invulnerability),a);
+   pText.PlotTextCentered(a,x1,x2,i,Alpha);
+   str(Round(Character.resistance.poison.Resistance*100),b);
+   pText.PlotTextCentered(b,x3,x4,i,Alpha);
+   InfoRect[ix+56].info:=txtMessage[19]+ a +txtMessage[20]+ 'Gift'+ txtMessage[21];
+   InfoRect[ix+56+11].info:=txtMessage[22]+ b +txtMessage[23]+ 'Gift'+ txtMessage[21];
+
+   i:=i+24;
+   str(Round(Character.resistance.mental.Invulnerability),a);
+   pText.PlotTextCentered(a,x1,x2,i,Alpha);
+   str(Round(Character.resistance.mental.Resistance*100),b);
+   pText.PlotTextCentered(b,x3,x4,i,Alpha);
+   InfoRect[ix+57].info:=txtMessage[19]+ a +txtMessage[20]+ StatName[1][11]+ txtMessage[21];
+   InfoRect[ix+57+11].info:=txtMessage[22]+ b +txtMessage[23]+ StatName[1][11]+ txtMessage[21];
 
 
    //Damage column
@@ -1350,9 +1337,9 @@ begin
     InfoRect[ ix + 88 ].info := txtMessage[ 24 ] + a + txtMessage[ 25 ] + b + txtMessage[ 26 ] + StatName[ 1 ][ 8 ] +
       txtMessage[ 27 ];
 
-    InfoRect[ ix + 89 ].Disabled := true;
+    {InfoRect[ ix + 89 ].Disabled := true;
     InfoRect[ ix + 90 ].Disabled := true;
-    InfoRect[ ix + 91 ].Disabled := true;
+    InfoRect[ ix + 91 ].Disabled := true;}
 {   i:=i+24;
    str(Round(Character.damage.mental.Min),a);
    str(Round(Character.damage.mental.Max),b);
@@ -1371,6 +1358,26 @@ begin
    pText.PlotText(a+'-'+b,600,i,Alpha);
    InfoRect[ix+91].info:=txtMessage[24]+ a + txtMessage[25] + b + txtMessage[26] + StatName[1][11]+
                       txtMessage[27];  }
+					  
+i:=i+24;
+   str(Round(Character.damage.special.Min),a);
+   str(Round(Character.damage.special.Max),b);
+   pText.PlotTextCentered(a+'-'+b,x1,x2,i,Alpha);
+   InfoRect[ix+89].info:=txtMessage[24]+ a + txtMessage[25] + b + txtMessage[26] + StatName[1][9]+
+                      txtMessage[27];
+
+   i:=i+24;
+   str(Round(Character.damage.poison.Min),a);
+   str(Round(Character.damage.poison.Max),b);
+   pText.PlotTextCentered(a+'-'+b,x1,x2,i,Alpha);
+   InfoRect[ix+90].info:=txtMessage[24]+ a + txtMessage[25] + b + txtMessage[26] + 'Gift'+
+                      txtMessage[27];
+   i:=i+24;
+   str(Round(Character.damage.mental.Min),a);
+   str(Round(Character.damage.mental.Max),b);
+   pText.PlotTextCentered(a+'-'+b,x1,x2,i,Alpha);
+   InfoRect[ix+91].info:=txtMessage[24]+ a + txtMessage[25] + b + txtMessage[26] + StatName[1][11]+
+                      txtMessage[27];					  
   except
     on E : Exception do
       Log.log( FailName + E.Message );

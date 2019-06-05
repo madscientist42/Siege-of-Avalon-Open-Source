@@ -59,26 +59,23 @@ unit Character;
 {                                                                              }
 {******************************************************************************}
 
-{$INCLUDE Anigrp30cfg.inc}
-
 interface
 
 uses
-  Classes,
-  Windows,
-  SysUtils,
+  System.Classes,
+  System.UITypes,
+  Winapi.Windows,
   Anigrp30,
   AniDec30,
-  Graphics,
+  SoAOS.Types,
+  Vcl.Graphics,
 {$IFDEF DirectX}
   DirectX,
-  DXUtil,
   DXEffects,
 {$ENDIF}
-  digifx,
+  SoAOS.Graphics.Types,
   DFX,
-  Resource,
-  LogFile;
+  Resource;
 
 const
   MaxCompanions = 5;
@@ -927,7 +924,7 @@ type
     Titles : TStringList;
     AutoFight : boolean;
     NextAction : TNextAction;
-    HotKey : array[ 1..8 ] of TSpell;
+    HotKey : array[ 1..10 ] of TSpell;
     Companion : array[ 1..MaxCompanions ] of TCompanionCharacter;
     NoItemPlacement : boolean;
     IntendToZone : boolean;
@@ -1102,21 +1099,24 @@ var
 implementation
 
 uses
+  System.SysUtils,
+{$IFDEF DirectX}
+  DXUtil,
+{$ENDIF}
+  SoAOS.Graphics.Draw,
+  LogFile,
   Engine,
-  ItemDatabase,
   Titles,
-  Loader,
   Display,
   Parts,
   Sound,
-  INIFiles,
+  System.IniFiles,
   AI1,
   BasicHumanoidAI,
   UndeadAI,
   WolfAI,
   MiscAI,
   AniDemo,
-  Effects,
   Spells;
 
 //fix for bad character names
@@ -2814,7 +2814,6 @@ var
   Event : string;
   i : integer;
   Changed : boolean;
-  S : string;
   NewDamage : TDamageProfile;
 const
   FailName : string = 'TCharacter.DoFrame';
@@ -3130,7 +3129,7 @@ begin
               TItem( FTarget ).Resource := PartManager.GetLayerResource( TItem( FTarget ).LayeredImage );
             end
             else
-              Say( FullInvMsg, clWhite );
+              Say( FullInvMsg, cTalkWhiteColor );
             FTarget := nil;
           end
           else if ( FTarget is TContainer ) and not InterfaceLocked then
@@ -3368,7 +3367,7 @@ begin
       result := false;
     end;
   end;
-  for i := 1 to 8 do
+  for i := 1 to 10 do
   begin
     if assigned( HotKey[ i ] ) then
     begin
@@ -4491,6 +4490,14 @@ begin
     begin
       S := 'hotkey8=' + HotKey[ 8 ].Name; List.add( S );
     end;
+    if assigned( HotKey[ 9 ] ) then
+    begin
+      S := 'hotkey9=' + HotKey[ 9 ].Name; List.add( S );
+    end;
+    if assigned( HotKey[ 10 ] ) then
+    begin
+      S := 'hotkey10=' + HotKey[ 10 ].Name; List.add( S );
+    end;
     if assigned( CurrentSpell ) then
     begin
       S := 'currentspell=' + CurrentSpell.Name; List.add( S );
@@ -4565,6 +4572,10 @@ begin
     begin
       S := 'equipment.shield=' + Equipment[ slShield ].ItemName; List.add( S );
     end;
+    if assigned( Equipment[ sltabar ] ) then
+    begin
+      S := 'equipment.tabar=' + Equipment[ sltabar ].ItemName; List.add( S );
+    end;
     if assigned( Equipment[ slMisc1 ] ) then
     begin
       S := 'equipment.misc1=' + Equipment[ slMisc1 ].ItemName; List.add( S );
@@ -4604,6 +4615,8 @@ begin
       S := S + 'weapon,';
     if EquipmentLocked[ slShield ] then
       S := S + 'shield,';
+    if EquipmentLocked[ sltabar ] then
+      S := S + 'tabar,';
     if EquipmentLocked[ slMisc1 ] then
       S := S + 'misc1,';
     if EquipmentLocked[ slMisc2 ] then
@@ -4796,6 +4809,8 @@ begin
         result := result + 'weapon,';
       if EquipmentLocked[ slShield ] then
         result := result + 'shield,';
+      if EquipmentLocked[ sltabar ] then
+        result := result + 'tabar,';
       if EquipmentLocked[ slMisc1 ] then
         result := result + 'misc1,';
       if EquipmentLocked[ slMisc2 ] then
@@ -4831,6 +4846,8 @@ begin
       Result := Equipment[ slWeapon ].ItemName
     else if S = 'equipment.shield' then
       Result := Equipment[ slShield ].ItemName
+    else if S = 'equipment.tabar' then
+      Result := Equipment[ sltabar ].ItemName
     else if S = 'equipment.misc1' then
       Result := Equipment[ slMisc1 ].ItemName
     else if S = 'equipment.misc2' then
@@ -5009,6 +5026,14 @@ begin
             else
               HotKey[ 8 ] := TSpell( AllSpellList.Objects[ i ] );
           end
+          else if S = 'hotkey9' then
+          begin
+            i := AllSpellList.IndexOf( Value );
+            if i < 0 then
+              HotKey[ 9 ] := nil
+            else
+              HotKey[ 9 ] := TSpell( AllSpellList.Objects[ i ] );
+          end
           else
             NoProp := true;
         end;
@@ -5022,6 +5047,14 @@ begin
             Self.Alliance := Value
           else if S = 'diecount' then
             DieCount := StrToInt( Value )
+          else if S = 'hotkey10' then
+          begin
+            i := AllSpellList.IndexOf( Value );
+            if i < 0 then
+              HotKey[ 10 ] := nil
+            else
+              HotKey[ 10 ] := TSpell( AllSpellList.Objects[ i ] );
+          end
           else
             NoProp := true;
         end;
@@ -5170,6 +5203,10 @@ begin
           begin
             FEquipmentNames[ slOuter ] := Value
           end
+          else if S = 'equipment.tabar' then
+          begin
+            FEquipmentNames[ sltabar ] := Value
+          end
           else if S = 'equipment.misc1' then
           begin
             FEquipmentNames[ slMisc1 ] := Value
@@ -5213,6 +5250,8 @@ begin
               EquipmentLocked[ slWeapon ] := true;
             if pos( 'shield', S ) > 0 then
               EquipmentLocked[ slShield ] := true;
+            if pos( 'tabar', S ) > 0 then
+              EquipmentLocked[ sltabar ] := true;
             if pos( 'misc1', S ) > 0 then
               EquipmentLocked[ slMisc1 ] := true;
             if pos( 'misc2', S ) > 0 then
@@ -5615,9 +5654,10 @@ const
   Height = 6;
 var
   X, Y : longint;
-  BltFx : DDBLTFX;
+  BltFx : TDDBLTFX;
   Ratio : single;
   BarWidth : integer;
+  pr, pr0 : TRect;
 begin
   inherited;
   if Highlighted and not FDead and assigned( AI ) and Current.IsEnemy( self ) then
@@ -5626,7 +5666,9 @@ begin
     Y := View.Top + PosY - Height;
     BltFx.dwSize := SizeOf( BltFx );
     BltFx.dwFillColor := 0;
-    lpDDSBack.Blt( rect( X, Y, X + Width, Y + Height ), nil, rect( 0, 0, 0, 0 ), DDBLT_COLORFILL + DDBLT_WAIT, BltFx );
+    pr := Rect( X, Y, X + Width, Y + Height );
+    pr0 := Rect( 0, 0, 0, 0 );
+    lpDDSBack.Blt( @pr, nil, @pr0, DDBLT_COLORFILL + DDBLT_WAIT, @BltFx );
     if ( BaseHitPoints > 0 ) and ( HitPoints > 0 ) then
     begin
       Ratio := ( HitPoints - Wounds ) / HitPoints;
@@ -5640,7 +5682,9 @@ begin
       BltFx.dwFillColor := trunc( $18 * ( 1 - Ratio ) ) shl 10 + trunc( $F * Ratio ) shl 5
     else
       BltFx.dwFillColor := trunc( $18 * ( 1 - Ratio ) ) shl 11 + trunc( $1F * Ratio ) shl 5;
-    lpDDSBack.Blt( rect( X + 1, Y + 1, X + BarWidth, Y + Height - 1 ), nil, rect( 0, 0, 0, 0 ), DDBLT_COLORFILL + DDBLT_WAIT, BltFx );
+    pr := Rect( X + 1, Y + 1, X + BarWidth, Y + Height - 1 );
+    pr0 := Rect( 0, 0, 0, 0 );
+    lpDDSBack.Blt( @pr, nil, @pr0, DDBLT_COLORFILL + DDBLT_WAIT, @BltFx );
   end;
 end;
 
@@ -8159,7 +8203,7 @@ begin
   end;
   if not result then
   begin
-    Say( ChestMsg, clRed );
+    Say( ChestMsg, cTalkRedColor );
   end;
 end;
 
@@ -8980,7 +9024,7 @@ begin
     result := nil;
     W := GroundListWidth;
     H := GroundListHeight;
-    result := DDGetSurface( lpDD, W, H, clFuchsia, true, ColorMatch );
+    result := DDGetSurface( lpDD, W, H, cTransparent, true, ColorMatch );
     if assigned( result ) then
     begin
       if assigned( Resource ) then
@@ -9065,7 +9109,7 @@ begin
       begin
         W := InvW * 18;
         H := InvH * 26;
-        result := DDGetSurface( lpDD, W, H, clFuchsia, true, ColorMatch );
+        result := DDGetSurface( lpDD, W, H, cTransparent, true, ColorMatch );
         if assigned( result ) then
         begin
           ddsd.dwSize := SizeOf( ddsd );
@@ -9125,7 +9169,7 @@ begin
       H := 26
     else
       H := InvH * 26;
-    result := DDGetSurface( lpDD, W, H, clFuchsia, true, ColorMatch );
+    result := DDGetSurface( lpDD, W, H, cTransparent, true, ColorMatch );
     if assigned( result ) then
     begin
       ddsd.dwSize := SizeOf( ddsd );
@@ -9304,6 +9348,8 @@ begin
         result := result + '[Weapon]';
       if slShield in SlotsAllowed then
         result := result + '[Shield]';
+      if sltabar in SlotsAllowed then
+        result := result + '[tabar]';
       if slMisc1 in SlotsAllowed then
         result := result + '[Misc1]';
       if slMisc2 in SlotsAllowed then
@@ -9451,6 +9497,8 @@ begin
       S := S + '[Weapon]';
     if slShield in SlotsAllowed then
       S := S + '[Shield]';
+    if sltabar in SlotsAllowed then
+      S := S + '[tabar]';
     if slMisc1 in SlotsAllowed then
       S := S + '[Misc1]';
     if slMisc2 in SlotsAllowed then
@@ -9524,6 +9572,8 @@ begin
               SlotsAllowed := SlotsAllowed + [ slWeapon ];
             if Pos( '[shield]', S ) > 0 then
               SlotsAllowed := SlotsAllowed + [ slShield ];
+            if Pos( '[tabar]', S ) > 0 then
+              SlotsAllowed := SlotsAllowed + [ sltabar ];
             if Pos( '[misc1]', S ) > 0 then
               SlotsAllowed := SlotsAllowed + [ slMisc1 ];
             if Pos( '[misc2]', S ) > 0 then
@@ -10296,9 +10346,16 @@ begin
 
     with BM.Canvas do
     begin
+      // Beware below fix is temporary - due to issue with DDrawCompat ddraw.dll
+      Y1 := Height-Y1;
+      Y2 := Height-Y2;
+      //
+
       PatBlt( Handle, 0, 0, BM.width, BM.Height, BLACKNESS );
       X0 := R - Round( ( R - 4 ) * CosT );
-      Y0 := R div 2 - Round( ( R - 4 ) * SinT );
+      // Beware below fix is temporary - due to issue with DDrawCompat ddraw.dll
+      Y0 := Height - ( R div 2 - Round( ( R - 4 ) * SinT ) );
+      // was: Y0 := R div 2 - Round( ( R - 4 ) * SinT );
       Pen.Color := FletchingColor;
       Pen.Width := 3;
       MoveTo( X0, Y0 );
@@ -10309,7 +10366,9 @@ begin
       LineTo( X2, Y2 );
       Pen.Color := clSilver;
       X0 := Height + Round( ( R - 2 ) * CosT );
-      Y0 := Height div 2 + Round( ( R - 2 ) * SinT );
+      // Beware below fix is temporary - due to issue with DDrawCompat ddraw.dll
+      Y0 := Height - ( Height div 2 + Round( ( R - 2 ) * SinT ) );
+      // was: Y0 := Height div 2 + Round( ( R - 2 ) * SinT );
       MoveTo( X0, Y0 );
       LineTo( X2, Y2 );
     end;
@@ -11099,6 +11158,7 @@ var
 const
   FailName : string = 'TSpriteObject.Say';
 begin
+//TODO: Cleanup
 {$IFDEF DODEBUG}
   if ( CurrDbgLvl >= DbgLvlSevere ) then
     Log.LogEntry( FailName );
@@ -11144,7 +11204,7 @@ begin
     PatBlt( BM.Canvas.Handle, 0, 0, MsgWidth, MsgHeight, BLACKNESS );
     DrawText( BM.Canvas.Handle, PChar( Msg ), -1, R, DT_CENTER or DT_NOCLIP or DT_NOPREFIX or DT_WORDBREAK );
 {$IFDEF DirectX}
-    MsgImage := DDGetImage( lpDD, BM, clBlack, True );
+    MsgImage := SoAOS_DX_SurfaceFromBMP( BM, clBlack );
 {$ENDIF}
 {$IFNDEF DirectX}
     BM.TransparentMode := tmFixed;
@@ -11165,6 +11225,7 @@ end;
 procedure TSpriteObject.UpdateSay;
 var
   X0, i : integer;
+//  pr : TRect;
 const
   FailName : string = 'TSpriteObject.UpdateSay';
 begin
@@ -11179,7 +11240,10 @@ begin
     begin
       X0 := PosX + CenterX - MsgWidth div 2;
 {$IFDEF DirectX}
-      lpDDSBack.BltFast( X0, PosY - MsgHeight, MsgImage, Rect( 0, 0, MsgWidth, MsgHeight ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+	   //Windows 8/10 Fix, Crash at Mapedges appearently - from gondur branch
+      DrawAlpha(lpddsback, rect(X0, PosY - MsgHeight, X0 + MsgWidth, PosY), rect( 0, 0, MsgWidth, MsgHeight ), MsgImage, True, 255);
+//      pr := Rect( 0, 0, MsgWidth, MsgHeight );
+//      lpDDSBack.BltFast( X0, PosY - MsgHeight, MsgImage, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
 {$ENDIF}
 {$IFNDEF DirectX}
       SelectObject( Game.TempDC, MsgMask );
@@ -11918,7 +11982,7 @@ begin
   end;
 end;
 
-procedure TTrigger.Execute;
+function TTrigger.Execute;
 var
   event : string;
 const
@@ -12822,7 +12886,7 @@ begin
             Item.LayeredImage := PartManager.GetImageFile( Item.PartName, TCharacterResource( TCharacter( Dest ).Resource ).NakedName );
             Item.Resource := PartManager.GetLayerResource( Item.LayeredImage );
             Item.SetPos( Dest.X, Dest.Y, Dest.Z );
-            TCharacter( Dest ).Say( FullInvMsg, clWhite );
+            TCharacter( Dest ).Say( FullInvMsg, cTalkWhiteColor );
             Item.enabled := true;
             Item.Drop;
           end;

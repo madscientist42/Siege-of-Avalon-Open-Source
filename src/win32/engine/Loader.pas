@@ -61,25 +61,16 @@ unit Loader;
 
 interface
 
-{$INCLUDE Anigrp30cfg.inc}
-
 uses
-  Classes,
-  Windows,
-  Graphics,
-  SysUtils,
-  Forms,
-  INIFiles,
+  System.Classes,
+  System.IOUtils,
+  System.UITypes,
+  System.SysUtils,
   Anigrp30,
   AniDec30,
-{$IFDEF DirectX}
-  DirectX,
-  DXUtil,
-{$ENDIF}
   Character,
   Resource,
   Engine,
-  ItemDatabase,
   LogFile;
 
 type
@@ -109,7 +100,8 @@ implementation
 
 uses
   Parts,
-  AniDemo;
+  AniDemo,
+  System.Variants;
 
 function LoadMap( var Map : TAniMap; const Filename, Scene : string; IgnoreDefaultSprites, IgnoreSceneSprites : boolean ) : boolean;
 var
@@ -123,7 +115,7 @@ var
   FillVarLimit : longint;
   Width, Height : longint;
   Position : longint;
-  S : string;
+  S : AnsiString; // Must be Ansi for now
   RNames : TStringList;
   DNames : TStringList;
   ONames : TStringList;
@@ -210,7 +202,7 @@ var
 
   procedure ReadResourceList( FResources : TStringList );
   var
-    cText : string;
+    cText : AnsiString;
     L : longint;
   const
     FailName : string = 'Loader.ReadResourcesList';
@@ -336,7 +328,7 @@ var
       while Stream.Position < MaxPos do
       begin
         Stream.Read( iMapPos, sizeof( iMapPos ) );
-        ZeroMemory( @aDiam, sizeof( aDiam ) );
+        aDiam := Default(TDTileInfo);
         i := iMapPos mod Width;
         j := iMapPos div Width;
         Stream.Read( iSlice, sizeof( iSlice ) ); //how many slices filled
@@ -386,7 +378,7 @@ var
     L : longint;
     X, Y, Z : longint;
     Index, ImageIndex : longint;
-    cText : string;
+    cText : AnsiString;
     i, j, k : integer;
     Attributes : TStringList;
     NewResource : TResource;
@@ -452,7 +444,7 @@ var
     //    Log.Log('Light Zone: '+inttostr(zone));
 
           S := DefaultPath + 'Maps\' + ChangeFileExt( ExtractFilename( LVLFile ), '.zit' );
-          if FileExists( S ) then
+          if TFile.Exists( S ) then
           try
             ZoneStream := TFileStream.Create( S, fmOpenRead or fmShareDenyWrite );
             try
@@ -515,11 +507,14 @@ var
         InScene := lowercase( Attributes.values[ 'InScene' ] ); //Check to see if object is in current scene
         if ( InScene <> '' ) then
         begin
-          if ( Pos( '[' + SceneName + ']', InScene ) = 0 ) then
+          if ( InScene <> Scenename ) then   //Fix by Rucksacksepp
           begin
-            Attributes.free;
-            Log.Log( '  Object not in scene' );
-            exit;
+            if ( Pos( '[' + SceneName + ']', InScene ) = 0 ) then
+            begin
+              Attributes.Free;
+              Log.Log( '  Object not in scene' );
+              Exit;
+            end;
           end;
         end;
 
@@ -735,19 +730,19 @@ var
 
             S := Attributes.values[ 'ListOfTiles' ];
             k := 0;
-            S1 := Parse( S, k, ' ' );
+            S1 := Parse( AnsiString ( S ), k, ' ' );
             while ( S1 <> '' ) do
             begin
-              S2 := Parse( S1, 0, ',' );
+              S2 := Parse( AnsiString ( S1 ), 0, ',' );
               X := StrToInt( Copy( S2, 2, length( S2 ) - 1 ) ) div Map.TileWidth;
-              S2 := Parse( S1, 1, ',' );
+              S2 := Parse( AnsiString ( S1 ), 1, ',' );
               Y := StrToInt( Copy( S2, 1, length( S2 ) - 1 ) ) div Map.TileHeight;
               if j <> 0 then
               begin
                 if S5 = '' then
                   Mask := $FFFF
                 else
-                  Mask := strtoint( Parse( S5, k, ',' ) );
+                  Mask := strtoint( Parse( AnsiString( S5 ), k, ',' ) );
                 Map.SetTrigger( X, Y, j, Mask );
               end;
               if i <> 0 then
@@ -951,7 +946,7 @@ var
       SetLength( S, L );
       Stream.Read( S[ 1 ], L );
       Log.Log( '  ' + S );
-      S := lowercase( S );
+      S := AnsiString( AnsiLowerCase( S ) );
       if ( S = lowercase( SceneName ) ) or ( ( S = 'default scene' ) and ( SceneName = '' ) ) then
       begin
         SceneIndex := SceneCount;
@@ -996,10 +991,10 @@ var
 
   procedure ReadThemeBlock;
   var
-    S : string;
+    S : AnsiString;
     i, L : longint;
     List : TStringList;
-    ThemeName : string;
+    ThemeName : AnsiString;
 
   const
     FailName : string = 'Loader.readThemeBlock';
@@ -1031,10 +1026,10 @@ var
             SetLength( S, L );
             Stream.Read( S[ 1 ], L );
             List.Text := S;
-            S := List.strings[ 0 ];
+            S := AnsiString( List.strings[ 0 ] );
             for i := 1 to List.count - 1 do
             begin
-              S := S + ',' + List.strings[ i ];
+              S := AnsiString( S + ',' + List.strings[ i ] );
             end;
           finally
             List.free;
@@ -1051,7 +1046,7 @@ var
   procedure ReadZonesBlock;
   var
     i, Count, L, MaxZone : longint;
-    S : string;
+    S : AnsiString;
     z : word;
     ZoneStream : TFileStream;
     P : longint;
@@ -1154,9 +1149,9 @@ var
       end
       else
       begin
-        S := DefaultPath + 'Maps\' + ChangeFileExt( ExtractFilename( LVLFile ), '.zit' );
+        S := AnsiString( DefaultPath + 'Maps\' + ChangeFileExt( ExtractFilename( LVLFile ), '.zit' ) );
         try
-          if FileExists( S ) then
+          if TFile.Exists( S ) then
             ZoneStream := TFileStream.Create( S, fmOpenRead or fmShareDenyWrite )
         except
         end;
@@ -1196,7 +1191,7 @@ begin
   result := false;
   try
     Log.Log( 'Map File=' + Filename );
-    if not FileExists( Filename ) then
+    if not TFile.Exists( Filename ) then
     begin
       Log.Log( 'File not found' );
       result := false;
@@ -1216,7 +1211,7 @@ begin
     SceneName := lowercase( SceneName );
     CacheFileA := CachePath + ChangeFileExt( ExtractFilename( LVLFile ), '' ) + '_' + SceneName + '.pit';
     CacheFileB := CachePath + ChangeFileExt( ExtractFilename( LVLFile ), '' ) + '_' + SceneName + '.zit';
-    UseCache := ReadCache and FileExists( CacheFileA ) and FileExists( CacheFileB );
+    UseCache := ReadCache and TFile.Exists( CacheFileA ) and TFile.Exists( CacheFileB );
 
     Zones := TStringList.Create;
     try
@@ -1240,9 +1235,9 @@ begin
       end
       else
       begin
-        S := DefaultPath + 'Maps\' + ChangeFileExt( ExtractFilename( LVLFile ), '.zit' );
+        S := AnsiString( DefaultPath + 'Maps\' + ChangeFileExt( ExtractFilename( LVLFile ), '.zit' ));
         try
-          if FileExists( S ) then
+          if TFile.Exists( S ) then
             Stream := TFileStream.Create( S, fmOpenRead or fmShareDenyWrite )
         except
         end;
@@ -1307,7 +1302,7 @@ begin
                   RIndex[ 1 ] := TileIndex;
                   for i := 1 to RNames.count - 1 do
                   begin
-                    S := RNames.Strings[ i ] + '.gif';
+                    S := AnsiString( RNames.Strings[ i ] + '.gif');
 //                  Log.Log('  '+S);
                     try
                       Resource := LoadResource( TilePath + S );
@@ -1346,7 +1341,7 @@ begin
                   DIndex[ 0 ] := TileIndex;
                   for i := 0 to DNames.count - 1 do
                   begin
-                    S := DNames.Strings[ i ] + '.gif';
+                    S := AnsiString( DNames.Strings[ i ] + '.gif' );
 //                  Log.Log('  '+S);
                     try
                       Resource := LoadResource( TilePath + S );
@@ -1358,31 +1353,31 @@ begin
                         Zone := 2;
                         TileIndex := TTileResource( Resource ).Define( Map, Zone, TileIndex );
                         INI := TTileResource( Resource ).INI;
-                        S := INI.ReadString( 'ImageList', 'Center', '' );
+                        S := AnsiString( INI.ReadString( 'ImageList', 'Center', '' ) );
                         DVariations[ i, ord( dqCenter ) ] := LoadIndexes( S );
-                        S := INI.ReadString( 'ImageList', 'EECornerIn', '' );
+                        S := AnsiString( INI.ReadString( 'ImageList', 'EECornerIn', '' ) );
                         DVariations[ i, ord( dqIE ) ] := LoadIndexes( S );
-                        S := INI.ReadString( 'ImageList', 'EECornerOut', '' );
+                        S := AnsiString( INI.ReadString( 'ImageList', 'EECornerOut', '' ) );
                         DVariations[ i, ord( dqOE ) ] := LoadIndexes( S );
-                        S := INI.ReadString( 'ImageList', 'NEEdge', '' );
+                        S := AnsiString( INI.ReadString( 'ImageList', 'NEEdge', '' ) );
                         DVariations[ i, ord( dqNE ) ] := LoadIndexes( S );
-                        S := INI.ReadString( 'ImageList', 'NNCornerIn', '' );
+                        S := AnsiString( INI.ReadString( 'ImageList', 'NNCornerIn', '' ) );
                         DVariations[ i, ord( dqIN ) ] := LoadIndexes( S );
-                        S := INI.ReadString( 'ImageList', 'NNCornerOut', '' );
+                        S := AnsiString( INI.ReadString( 'ImageList', 'NNCornerOut', '' ) );
                         DVariations[ i, ord( dqON ) ] := LoadIndexes( S );
-                        S := INI.ReadString( 'ImageList', 'NWEdge', '' );
+                        S := AnsiString( INI.ReadString( 'ImageList', 'NWEdge', '' ) );
                         DVariations[ i, ord( dqNW ) ] := LoadIndexes( S );
-                        S := INI.ReadString( 'ImageList', 'WWCornerIn', '' );
+                        S := AnsiString( INI.ReadString( 'ImageList', 'WWCornerIn', '' ) );
                         DVariations[ i, ord( dqIW ) ] := LoadIndexes( S );
-                        S := INI.ReadString( 'ImageList', 'WWCornerOut', '' );
+                        S := AnsiString( INI.ReadString( 'ImageList', 'WWCornerOut', '' ) );
                         DVariations[ i, ord( dqOW ) ] := LoadIndexes( S );
-                        S := INI.ReadString( 'ImageList', 'SWEdge', '' );
+                        S := AnsiString( INI.ReadString( 'ImageList', 'SWEdge', '' ) );
                         DVariations[ i, ord( dqSW ) ] := LoadIndexes( S );
-                        S := INI.ReadString( 'ImageList', 'SSCornerIn', '' );
+                        S := AnsiString( INI.ReadString( 'ImageList', 'SSCornerIn', '' ) );
                         DVariations[ i, ord( dqIS ) ] := LoadIndexes( S );
-                        S := INI.ReadString( 'ImageList', 'SSCornerOut', '' );
+                        S := AnsiString( INI.ReadString( 'ImageList', 'SSCornerOut', '' ) );
                         DVariations[ i, ord( dqOS ) ] := LoadIndexes( S );
-                        S := INI.ReadString( 'ImageList', 'SEEdge', '' );
+                        S := AnsiString( INI.ReadString( 'ImageList', 'SEEdge', '' ) );
                         DVariations[ i, ord( dqSE ) ] := LoadIndexes( S );
                         Resource.Free;
                         DIndex[ i + 1 ] := TileIndex;
@@ -1410,7 +1405,7 @@ begin
                 for i := 1 to ONames.count - 1 do
                 begin
 
-                  S := lowercase( ONames.Strings[ i ] );
+                  S := AnsiString( AnsiLowerCase( ONames.Strings[ i ] ) );
                   if copy( S, 1, 7 ) = 'editor\' then
                   begin
 //                  Log.Log('  Skipping '+S);
@@ -1429,7 +1424,7 @@ begin
                     begin
                       if DumpMode then
                       begin
-                        if not FileExists( ArtPath + S + '.pox' ) then
+                        if not TFile.Exists( ArtPath + S + '.pox' ) then
                           Log.Log( '*** Error: Resource does not exist ' + S );
                       end
                       else

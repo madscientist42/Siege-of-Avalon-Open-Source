@@ -59,22 +59,7 @@ unit Music;
 {                                                                              }
 {******************************************************************************}
 
-{$INCLUDE Anigrp30cfg.inc}
-
 interface
-
-uses
-  Windows,
-  Messages,
-  SysUtils,
-  Classes,
-  Controls,
-  StdCtrls,
-  ExtCtrls,
-  forms,
-  Midi,
-  MP3,
-  LogFile;
 
 type
   rSong = record
@@ -105,7 +90,7 @@ type
     procedure SetGameVolume( GameVolume : integer ); //does seemingly nothing
     procedure ResumeThisSong;
     procedure PauseThisSong;
-    procedure OpenThisSong( SongName : string );
+    procedure OpenThisSong( SongName : AnsiString );
     procedure PlayThisSong;
     constructor Create( WindowHandle : integer );
     destructor Destroy; override;
@@ -118,7 +103,12 @@ var
 implementation
 
 uses
-  Sound;
+  System.SysUtils,
+  System.IOUtils,
+  Midi,
+  MP3,
+  Sound,
+  LogFile;
 
 { TMusic }
 
@@ -158,7 +148,7 @@ begin
   end;
 end; //TMusic.Destroy;
 
-procedure TMusic.OpenThisSong( SongName : string );
+procedure TMusic.OpenThisSong( SongName : AnsiString );
 begin
   if not DaSoundCardAvailable then
     exit;
@@ -173,7 +163,7 @@ begin
     StopMidiSong;
   end;
   SongType := -1;
-  if FileExists( SongName ) then
+  if TFile.Exists( SongName ) then
   begin
     SongType := 1; //MP3
        //Open the Mp3 Song
@@ -188,7 +178,7 @@ begin
         OpenMP3Song( SongName, True ); //loopit
     end;
   end
-  else if FileExists( ChangeFileExt( SongName, '.MID' ) ) then
+  else if TFile.Exists( ChangeFileExt( SongName, '.MID' ) ) then
   begin //if we cant find this file with .MP3 try it with .MID
     SongType := 2;
     MP3SongOpen := false;
@@ -215,7 +205,7 @@ begin
   end
   else if SongType = 2 then
   begin //MIDI
-    OpenMidiSong( MidiFileName );
+    OpenMidiSong( AnsiString( MidiFileName ) );
   end
   else
   begin //Song type invalid
@@ -240,7 +230,7 @@ begin
   DatFile := StringReplace( SongName, '.mp3', '.dat', [ rfIgnoreCase ] );
 
   JustPlayTheSongOnce := false;
-  if FileExists( DatFile ) then
+  if TFile.Exists( DatFile ) then
   begin
    {  AssignFile(F,DatFile);
      Reset(F);
@@ -345,7 +335,7 @@ begin
   end
   else if SongType = 2 then
   begin //midisong - no resume
-    OpenMidiSong( MidiFileName );
+    OpenMidiSong( AnsiString( MidiFileName ) );
   end
   else
   begin //invalid song type

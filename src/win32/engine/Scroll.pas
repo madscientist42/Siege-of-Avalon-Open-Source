@@ -59,35 +59,27 @@ unit Scroll;
 {                                                                              }
 {******************************************************************************}
 
-{$INCLUDE Anigrp30cfg.inc}
-
 interface
 
 uses
 {$IFDEF DirectX}
   DirectX,
   DXUtil,
-  DXEffects,
 {$ENDIF}
-  Windows,
-  Forms,
-  Classes,
-  Graphics,
-  SysUtils,
+  Vcl.Forms,
+  System.Classes,
+  System.Types,
+  System.SysUtils,
   Character,
-  GameText,
-  Anigrp30,
-  Engine,
-  Logfile,
-  Display;
+  GameText;
 
 type
   TScroll = class( TObject )
   private
     DescList : TStringList;
-    DxSheet : IDirectDrawSurface; //Surface used for statistics
-    DxFrame : IDirectDrawSurface; //Nifty roller thing for statistics
-    DxDirty : IDirectDrawSurface;
+    DXSheet : IDirectDrawSurface; //Surface used for statistics
+    DXFrame : IDirectDrawSurface; //Nifty roller thing for statistics
+    DXDirty : IDirectDrawSurface;
     ScrollFactor : integer; //How far we've scrolled
     StatsScrollItem : TItem; //Index for scroll item
     MaxScroll : integer; //max Scroll YCoord
@@ -104,14 +96,19 @@ type
     destructor Destroy; override;
   end;
 
-
 implementation
+
 uses
-  AniDemo;
+  SoAOS.Types,
+  SoAOS.Graphics.Draw,
+  AniDemo,
+  Anigrp30,
+  Engine,
+  Logfile,
+  Display;
 
 constructor TScroll.Create;
 var
-  BM : TBitmap;
   i : integer;
 const
   FailName : string = 'TCharacter.create';
@@ -122,14 +119,9 @@ begin
 {$ENDIF}
   try
     inherited;
-    BM := TBitmap.create;
-    BM.LoadFromFile( InterfacePath + 'ScrollFrame.bmp' );
-    DXDirty := DDGetImage( lpDD, BM, $00FFFF00, False );
-    BM.LoadFromFile( InterfacePath + 'ScrollFrame.bmp' );
-    DXFrame := DDGetImage( lpDD, BM, $00FFFF00, False );
-    BM.LoadFromFile( InterfacePath + 'ScrollPage.bmp' );
-    DXSheet := DDGetImage( lpDD, BM, $00FFFF00, False );
-    BM.Free;
+    DXDirty := SoAOS_DX_LoadBMP( InterfacePath + 'ScrollFrame.bmp', cInvisColor );
+    DXFrame := SoAOS_DX_LoadBMP( InterfacePath + 'ScrollFrame.bmp', cInvisColor );
+    DXSheet := SoAOS_DX_LoadBMP( InterfacePath + 'ScrollPage.bmp', cInvisColor );
     DescList := TStringlist.create;
     ExText.Open( 'Scroll' );
     for i := 0 to 34 do
@@ -170,7 +162,7 @@ var
   Yadj : integer;
   ScrollStartValue : integer; //top of scroll
   ScrollEndValue : integer; //bottom of scroll
-  //myPoint: Tpoint;
+  pr : TRect;
 const
   FailName : string = 'TScroll.ShowStatsScroll';
 begin
@@ -189,7 +181,8 @@ begin
   //show the sheet
     for i := 0 to 3 do
     begin //plot 4 segements of the sheet
-      lpDDSBack.BltFast( Mx, 13 + 45 + i * 90, DXSheet, Rect( 0, 0, 338, 90 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+      pr := Rect( 0, 0, 338, 90 );
+      lpDDSBack.BltFast( Mx, 13 + 45 + i * 90, DXSheet, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
     end;
     MaxScroll := 0;
     if ( My + 40 > ScrollStartValue ) and ( My + 40 < ScrollEndValue ) then
@@ -824,17 +817,21 @@ begin
     end;
 
 //plot the cleanup for spillover text from the description
-    lpDDSBack.BltFast( 171, 0, DXDirty, Rect( 0, 0, 338, 45 ), DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, 338, 45 );
+    lpDDSBack.BltFast( 171, 0, DXDirty, @pr, DDBLTFAST_WAIT );
 //Now plot the rollers, top and bottom
-    lpDDSBack.BltFast( 119, 13, DXFrame, Rect( 0, 0, 443, 90 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
-    lpDDSBack.BltFast( 119, 373, DXFrame, Rect( 0, 0, 443, 90 ), DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, 443, 90 );
+    lpDDSBack.BltFast( 119, 13, DXFrame, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
+    pr := Rect( 0, 0, 443, 90 );
+    lpDDSBack.BltFast( 119, 373, DXFrame, @pr, DDBLTFAST_SRCCOLORKEY or DDBLTFAST_WAIT );
 
   //GetCursorPos(myPoint);
   //myPoint:=Game.ScreenToClient(myPoint);
   //if not PtInRect(Rect(119, 0, 600, 550),myPoint) then
     MouseCursor.Cleanup;
     lpDDSFront.Flip( nil, DDFLIP_WAIT );
-    lpDDSBack.BltFast( 119, 0, lpDDSFront, Rect( 119, 0, 600, 550 ), DDBLTFAST_WAIT );
+    pr := Rect( 119, 0, 600, 550 );
+    lpDDSBack.BltFast( 119, 0, lpDDSFront, @pr, DDBLTFAST_WAIT );
   //if PtInRect(Rect(119, 0, 600, 550),myPoint) then
     MouseCursor.PlotDirty := false;
   except
@@ -847,6 +844,7 @@ end; //TScroll.ShowStatsScroll
 procedure TScroll.OpenStatsScroll( TheItem : TItem );
 var
   tempString : string;
+  pr : TRect;
 const
   FailName : string = 'TScroll.OpenStatsScroll';
 begin
@@ -859,7 +857,8 @@ begin
     KeepOnScrolling := false;
     StatsScrollItem := TheItem;
    //save this portion of the screen so we can just let text run off the top
-    DXDirty.BltFast( 0, 0, lpDDSBack, Rect( 171, 0, 509, 45 ), DDBLTFAST_WAIT );
+    pr := Rect( 171, 0, 509, 45 );
+    DXDirty.BltFast( 0, 0, lpDDSBack, @pr, DDBLTFAST_WAIT );
     DescList.clear;
     if StatsScrollItem.Info <> '' then
       tempString := StringReplace( StatsScrollItem.Info, '<CRLF>', char( 13 ), [ rfReplaceAll ] + [ rfIgnoreCase ] );
@@ -884,13 +883,13 @@ begin
     Log.LogEntry( FailName );
 {$ENDIF}
   try
-    OldTime := GetTickCount;
+    OldTime := TThread.GetTickCount;  // TStopWatch better
     Adj := 0;
     while KeepOnScrolling do
     begin
-      TimeDif := GetTickCount - OldTime;
+      TimeDif := TThread.GetTickCount - OldTime;
       Adj := Adj + 80 * ( TimeDif / 1000 );
-      OldTime := GetTickCount;
+      OldTime := TThread.GetTickCount;
       if Adj >= 1 then
       begin
         ScrollFactor := ScrollFactor + ScrollAmount * Trunc( Adj );
@@ -901,7 +900,7 @@ begin
         ShowStatsScroll;
         Adj := Adj - Trunc( Adj );
       end;
-      application.ProcessMessages;
+      Application.ProcessMessages;
     end; //wend
   except
     on E : Exception do

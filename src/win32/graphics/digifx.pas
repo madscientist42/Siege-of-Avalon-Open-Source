@@ -70,8 +70,8 @@ unit digifx;
 interface
 
 uses
-  windows,
-  sysutils;
+  Winapi.Windows,
+  SoAOS.Graphics.Types;
 
 const
   BLITFX_NONE = 0;
@@ -125,16 +125,16 @@ type
     Unused : BYTE;
   end;
 
-  PBITPLANE = ^BITPLANE;
-  BITPLANE = record
-    bitsPtr : PBYTE;
-    bitsWdh : DWORD;
-    bitsHgh : DWORD;
-    bitsFmt : DWORD;
-    bitsPitch : DWORD;
-    BaseX : integer;
-    BaseY : integer;
-  end;
+//  PBITPLANE = ^BITPLANE;
+//  BITPLANE = record
+//    bitsPtr : PBYTE;
+//    bitsWdh : DWORD;
+//    bitsHgh : DWORD;
+//    bitsFmt : DWORD;
+//    bitsPitch : DWORD;
+//    BaseX : integer;
+//    BaseY : integer;
+//  end;
 
   PBLITFX = ^BLITFX;
   BLITFX = record
@@ -170,25 +170,22 @@ type
   DFXENUMCALLBACK = function( const s : PChar ) : boolean;
 
 
-function digifxInit( const s : PChar ) : BOOL;
+function digifxInit( s : string ) : BOOL;
 function digifxDone : BOOL;
 function digifxEnumDrivers( lpEnumProc : DFXENUMCALLBACK ) : BOOL;
 function digifxLoadDriver( lpDrvNamePtr : PChar; dwPixFmt : DWORD ) : DFXHND;
 function digifxFreeDriver( hDFX : DFXHND ) : BOOL;
 function digifxCreateRLE( hDFX : DFXHND; SrcBitsPtr : PBITPLANE; KeyColor : DWORD; RLEHDRPtr : PRLEHDR; BuffPtr : Pointer; FirstPtr : PRLEHDR ) : DWORD;
 function digifxConvertRLE( hDFX : DFXHND; RLEHDRPtr : PRLEHDR ) : BOOL;
-function digifxConvertBitplane( hDFX : DFXHND; BitplanePtr : PBITPLANE ) : BOOL;
 function digifxDrawRLE( hDFX : DFXHND; RLEHDRPtr : PRLEHDR; XPos : integer; YPos : integer; FXPtr : PBLITFX; DstBitsPtr : PBITPLANE ) : BOOL;
-function digifxRLEConvertToPixels( hDFX : DFXHND; RLEHDRPtr : PRLEHDR; PixTabPtr : PPIXEL; PixCnt : DWORD; PixSize : DWORD ) : DWORD;
-function digifxDrawPixels( hDFX : DFXHND; PixTabPtr : PPIXEL; PixCnt : DWORD; XPos : integer; YPos : integer; FXPtr : PBLITFX; DstBitsPtr : PBITPLANE ) : BOOL;
 function digifxDrawBitplane( hDFX : DFXHND; SrcBitsPtr : PBITPLANE; XPos : integer; YPos : integer; KeyColor : DWORD; FXPtr : PBLITFX; DstBitsPtr : PBITPLANE ) : BOOL;
-function digifxDrawRect( hDFX : DFXHND; RectPtr : PRECT; XPos : integer; YPos : integer; FXPtr : PBLITFX; DstBitsPtr : PBITPLANE ) : BOOL;
-function digifxDrawLine( hDFX : DFXHND; XBgn : integer; YBgn : integer; XEnd : integer; YEnd : integer; FXPtr : PBLITFX; DstBitsPtr : PBITPLANE ) : BOOL;
 function digifxConvertColor( hDFX : DFXHND; R : BYTE; G : BYTE; B : BYTE ) : DWORD;
-function digifxCheckSupport( hDFX : DFXHND; ProcNo : DWORD; FXPtr : PBLITFX; SrcPtr : Pointer; DstPtr : PBITPLANE ) : BOOL;
-function digifxGetErrorText : PCHAR;
 
 implementation
+
+uses
+  System.SysUtils,
+  System.AnsiStrings;
 
 type
   DFXSTARTUPLIB = function : PDWORD; stdcall;
@@ -213,8 +210,8 @@ const
 
 type
   DRVFILE = record
-    Info : array[ 0..64 ] of AnsiChar;
-    Fname : array[ 0..MAX_PATH - 1 ] of AnsiChar;
+    Info : string; //array[ 0..64 ] of AnsiChar;
+    Fname : string; //array[ 0..MAX_PATH - 1 ] of AnsiChar;
     Handle : HMODULE;
     RefCnt : DWORD;
     DFX : PDWORD;
@@ -230,30 +227,26 @@ var
   ErrPtr : PCHAR;
   RegEAX, RegEBX, RegECX, RegEDX, RegESI, RegEDI : DWORD;
 
-function digifxInit( const s : PChar ) : BOOL;
+function digifxInit( s : string ) : BOOL;
 var
-  StrPtr : PChar;
-  WorkDir : array[ 0..MAX_PATH - 1 ] of AnsiChar;
-  TmpFname : array[ 0..MAX_PATH - 1 ] of AnsiChar;
+  StrPtr : PAnsiChar;
+  WorkDir : string; // array[ 0..MAX_PATH - 1 ] of AnsiChar;
+  TmpFname : string; //array[ 0..MAX_PATH - 1 ] of AnsiChar;
   FindHnd : THandle;
   FindData : TWin32FindData;
   hMod : HMODULE;
   DFX : PDWORD;
   StartupLib : DFXSTARTUPLIB;
 begin
-  StrCopy( WorkDir, PChar( s ) );
-  if ( WorkDir[ Length( s ) - 1 ] <> '\' ) then
-    StrCat( WorkDir, '\' );
+  WorkDir := IncludeTrailingPathDelimiter( s );
   DriversCnt := 0;
-  StrCopy( TmpFname, WorkDir );
-  StrCat( TmpFname, 'dfx_*.dll' );
+  TmpFname := Concat(WorkDir, 'dfx_*.dll');
 
-  FindHnd := Windows.FindFirstFile( TmpFname, FindData );
+  FindHnd := FindFirstFile( PChar(TmpFname), FindData );
   while ( FindHnd <> INVALID_HANDLE_VALUE ) do
   begin
-    StrCopy( TmpFname, WorkDir );
-    StrCat( TmpFname, FindData.cFileName );
-    hMod := LoadLibrary( TmpFname );
+    TmpFname := Concat(WorkDir, FindData.cFileName);
+    hMod := LoadLibrary( PChar(TmpFname) );
     if ( hMod <> 0 ) then
     begin
       @StartupLib := GetProcAddress( hMod, 'StartupLibrary' );
@@ -266,20 +259,20 @@ begin
           call dword ptr [eax + DLL_GetInfo*4];
           mov StrPtr, esi;
         end;
-        if ( StrLComp( StrPtr, 'DigitalFX', 9 ) = 0 ) then
+        if ( System.AnsiStrings.StrLComp( StrPtr, 'DigitalFX', 9 ) = 0 ) then
         begin
-          StrCopy( DrvFilesTab[ DriversCnt ].Info, StrPtr );
-          StrCopy( DrvFilesTab[ DriversCnt ].Fname, TmpFname );
+          DrvFilesTab[ DriversCnt ].Info := StrPtr;
+          DrvFilesTab[ DriversCnt ].Fname := TmpFname;
           DrvFilesTab[ DriversCnt ].RefCnt := 0;
           Inc( DriversCnt );
         end;
       end;
       FreeLibrary( hMod );
     end;
-    if ( not Windows.FindNextFile( FindHnd, FindData ) ) then
+    if ( not FindNextFile( FindHnd, FindData ) ) then
       break;
   end;
-  Windows.FindClose( FindHnd );
+  //FindClose( FindHnd );
 
   result := true;
 end;
@@ -306,7 +299,7 @@ var
 begin
   for i := 0 to DriversCnt - 1 do
   begin
-    if ( not lpEnumProc( DrvFilesTab[ i ].Info ) ) then
+    if ( not lpEnumProc( PChar(DrvFilesTab[ i ].Info) ) ) then
       break;
   end;
   result := TRUE;
@@ -380,12 +373,12 @@ begin
   result := 0;
   for i := 0 to DriversCnt - 1 do
   begin
-    if ( StrComp( lpDrvNamePtr, DrvFilesTab[ i ].Info ) = 0 ) then
+    if ( StrComp( lpDrvNamePtr, PChar(DrvFilesTab[ i ].Info) ) = 0 ) then
     begin
       hDFX := i or ( DF_ID shl 16 );
       if ( DrvFilesTab[ i ].RefCnt = 0 ) then
       begin
-        hMod := LoadLibrary( DrvFilesTab[ i ].Fname );
+        hMod := LoadLibrary( PChar(DrvFilesTab[ i ].Fname) );
         if ( hMod = 0 ) then
           exit;
 
@@ -427,11 +420,6 @@ begin
     result := true;
 end;
 
-function digifxGetErrorText : PCHAR;
-begin
-  result := ErrPtr;
-end;
-
 function digifxCreateRLE( hDFX : DFXHND; SrcBitsPtr : PBITPLANE; KeyColor : DWORD; RLEHDRPtr : PRLEHDR; BuffPtr : Pointer; FirstPtr : PRLEHDR ) : DWORD;
 begin
   result := 0;
@@ -451,48 +439,14 @@ begin
   result := CallDFX( hDFX, DLL_ConvertRLE, 0, 0, 0, 0, DWORD( RLEHDRPtr ), DWORD( NewBuffPtr ) );
 end;
 
-// Return type mismatch: changed DWORD -> BOOL
-// Moved NewBuffPtr inside the proc. Is this ptr a dummy ptr?
-
-function digifxConvertBitplane( hDFX : DFXHND; BitplanePtr : PBITPLANE ) : BOOL;
-var
-  NewBuffPtr : Pointer;
-begin
-  NewBuffPtr := nil;
-  result := CallDFX( hDFX, DLL_ConvertBitplane, 0, 0, 0, 0, DWORD( BitplanePtr ), DWORD( NewBuffPtr ) );
-end;
-
 function digifxDrawRLE( hDFX : DFXHND; RLEHDRPtr : PRLEHDR; XPos : integer; YPos : integer; FXPtr : PBLITFX; DstBitsPtr : PBITPLANE ) : BOOL;
 begin
   result := CallDFX( hDFX, DLL_DrawRLE, DWORD( XPos ), DWORD( YPos ), 0, DWORD( FXPtr ), DWORD( RLEHDRPtr ), DWORD( DstBitsPtr ) );
 end;
 
-function digifxRLEConvertToPixels( hDFX : DFXHND; RLEHDRPtr : PRLEHDR; PixTabPtr : PPIXEL; PixCnt : DWORD; PixSize : DWORD ) : DWORD;
-begin
-  if ( CallDFX( hDFX, DLL_RLEConvertToPixels, DWORD( PixSize ), 0, DWORD( PixCnt ), 0, DWORD( RLEHDRPtr ), DWORD( PixTabPtr ) ) ) then
-    result := RegEAX
-  else
-    result := 0;
-end;
-
-function digifxDrawPixels( hDFX : DFXHND; PixTabPtr : PPIXEL; PixCnt : DWORD; XPos : integer; YPos : integer; FXPtr : PBLITFX; DstBitsPtr : PBITPLANE ) : BOOL;
-begin
-  result := CallDFX( hDFX, DLL_DrawPixels, DWORD( PixTabPtr ), DWORD( XPos ), DWORD( YPos ), DWORD( PixCnt ), DWORD( DstBitsPtr ), DWORD( FXPtr ) );
-end;
-
 function digifxDrawBitplane( hDFX : DFXHND; SrcBitsPtr : PBITPLANE; XPos : integer; YPos : integer; KeyColor : DWORD; FXPtr : PBLITFX; DstBitsPtr : PBITPLANE ) : BOOL;
 begin
   result := CallDFX( hDFX, DLL_DrawBitplane, DWORD( SrcBitsPtr ), DWORD( XPos ), DWORD( YPos ), KeyColor, DWORD( DstBitsPtr ), DWORD( FXPtr ) );
-end;
-
-function digifxDrawRect( hDFX : DFXHND; RectPtr : PRECT; XPos : integer; YPos : integer; FXPtr : PBLITFX; DstBitsPtr : PBITPLANE ) : BOOL;
-begin
-  result := CallDFX( hDFX, DLL_DrawRect, DWORD( RectPtr ), DWORD( XPos ), DWORD( YPos ), DWORD( FXPtr ), DWORD( DstBitsPtr ), 0 );
-end;
-
-function digifxDrawLine( hDFX : DFXHND; XBgn : integer; YBgn : integer; XEnd : integer; YEnd : integer; FXPtr : PBLITFX; DstBitsPtr : PBITPLANE ) : BOOL;
-begin
-  result := CallDFX( hDFX, DLL_DrawLine, DWORD( XBgn ), DWORD( YBgn ), DWORD( XEnd ), DWORD( YEnd ), DWORD( DstBitsPtr ), DWORD( FXPtr ) );
 end;
 
 function digifxConvertColor( hDFX : DFXHND; R : BYTE; G : BYTE; B : BYTE ) : DWORD;
@@ -511,11 +465,6 @@ begin
     result := RegEAX
   else
     result := NOKEYCOLOR;
-end;
-
-function digifxCheckSupport( hDFX : DFXHND; ProcNo : DWORD; FXPtr : PBLITFX; SrcPtr : Pointer; DstPtr : PBITPLANE ) : BOOL;
-begin
-  result := CallDFX( hDFX, DLL_CheckSupport, ProcNo, DWORD( FXPtr ), 0, 0, DWORD( SrcPtr ), DWORD( DstPtr ) );
 end;
 
 end.

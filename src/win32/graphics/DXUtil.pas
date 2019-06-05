@@ -59,8 +59,6 @@ unit DXUtil;
 {                                                                              }
 {******************************************************************************}
 
-{$INCLUDE Anigrp30cfg.inc}
-
 interface
 
 uses
@@ -69,162 +67,14 @@ uses
   DirectX,
   Graphics,
   Sysutils,
-  LogFile;
+  LogFile,
+  SoAOS.Graphics.Draw;
 
-function DDColorMatch( pdds : IDirectDrawSurface; Color : TColor ) : Longint;
-function DDGetImage( lpDD : IDirectDraw; BITMAP : TBitmap; Color : TColor; Video : Boolean ) : IDirectDrawSurface;
-function DDGetOverlay( lpDD : IDirectDraw; BITMAP : TBitmap; Color : TColor ) : IDirectDrawSurface;
 procedure GetSurfaceDims( var W, H : Integer; Surface : IDirectDrawSurface );
 function DDGetSurface( lpDD : IDirectDraw; W, H : integer; Color : TColor; Video : Boolean; var ColorMatch : integer ) : IDirectDrawSurface; overload;
 function DDGetSurface( lpDD : IDirectDraw; W, H : integer; Color : TColor; Video : Boolean ) : IDirectDrawSurface; overload;
 
 implementation
-
-function DDColorMatch( pdds : IDirectDrawSurface; Color : TColor ) : Longint;
-var
-  RGB, rgbT : COLORREF;
-  DC : HDC;
-  dw : Longint;
-  ddsd : DDSurfaceDesc;
-  hres : HRESULT;
-const
-  FailName : string = 'DXUtil.DDColorMatch';
-begin
-{$IFDEF DODEBUG}
-  if ( CurrDbgLvl >= DbgLvlSevere ) then
-    Log.LogEntry( FailName );
-{$ENDIF}
-  Result := 0;
-  try
-    dw := 0;
-    rgbT := 0;
-    RGB := ColorToRGB( Color );
-    if ( RGB <> CLR_INVALID ) then
-    begin
-      if ( pdds.GetDC( DC ) = DD_OK ) then
-      begin
-        rgbT := GetPixel( DC, 0, 0 ); // Save current pixel value
-        SetPixel( DC, 0, 0, RGB ); // Set our value
-        pdds.ReleaseDC( DC );
-      end;
-    end;
-
-    ddsd.dwSize := SizeOf( ddsd );
-    hres := pdds.Lock( nil, ddsd, 0, 0 );
-    while ( hres = DDERR_WASSTILLDRAWING ) do
-      hres := pdds.Lock( nil, ddsd, 0, 0 );
-    if ( hres = DD_OK ) then
-    begin
-      dw := Longint( ddsd.lpSurface^ ); // Get DWORD
-      if ( ddsd.ddpfPixelFormat.dwRGBBitCount < 32 ) then
-        dw := dw and ( ( 1 shl ddsd.ddpfPixelFormat.dwRGBBitCount ) - 1 ); // Mask it to bpp
-      pdds.Unlock( nil );
-    end;
-
-    if ( RGB <> CLR_INVALID ) then
-    begin
-      if ( pdds.GetDC( DC ) = DD_OK ) then
-      begin
-        SetPixel( DC, 0, 0, rgbT );
-        pdds.ReleaseDC( DC );
-      end;
-    end;
-    Result := dw;
-  except
-    on E : Exception do
-      Log.log( FailName + E.Message );
-  end;
-end;
-
-function DDGetImage( lpDD : IDirectDraw; BITMAP : TBitmap; Color : TColor; Video : Boolean ) : IDirectDrawSurface;
-var
-  ddsd : DDSurfaceDesc;
-  pdds : IDirectDrawSurface;
-  DC : HDC;
-  ddck : DDCOLORKEY;
-const
-  FailName : string = 'DXUtil.DDGetImage';
-begin
-{$IFDEF DODEBUG}
-  if ( CurrDbgLvl >= DbgLvlSevere ) then
-    Log.LogEntry( FailName );
-{$ENDIF}
-  try
-    ddsd.dwSize := SizeOf( ddsd );
-    ddsd.dwFlags := DDSD_CAPS + DDSD_HEIGHT + DDSD_WIDTH;
-    if Video then
-      ddsd.ddsCaps.dwCaps := DDSCAPS_OFFSCREENPLAIN or DDSCAPS_VIDEOMEMORY
-    else
-      ddsd.ddsCaps.dwCaps := DDSCAPS_OFFSCREENPLAIN or DDSCAPS_SYSTEMMEMORY;
-    ddsd.dwWidth := BITMAP.Width;
-    ddsd.dwHeight := BITMAP.Height;
-
-    Result := nil;
-
-    if ( lpdd.CreateSurface( ddsd, pdds, nil ) <> DD_OK ) then
-    begin
-      ddsd.ddsCaps.dwCaps := DDSCAPS_OFFSCREENPLAIN or DDSCAPS_SYSTEMMEMORY;
-      if ( lpdd.CreateSurface( ddsd, pdds, nil ) <> DD_OK ) then
-        Exit;
-    end;
-
-    pdds.GetDC( DC );
-    BitBlt( DC, 0, 0, BITMAP.width, BITMAP.Height, BITMAP.Canvas.Handle, 0, 0, SRCCOPY );
-    pdds.ReleaseDC( DC );
-    ddck.dwColorSpaceLowValue := DDColorMatch( pdds, Color );
-    ddck.dwColorSpaceHighValue := ddck.dwColorSpaceLowValue;
-    pdds.SetColorKey( DDCKEY_SRCBLT, ddck );
-    Result := pdds;
-  except
-    on E : Exception do
-      Log.log( FailName + E.Message );
-  end;
-end;
-
-function DDGetOverlay( lpDD : IDirectDraw; BITMAP : TBitmap; Color : TColor ) : IDirectDrawSurface;
-var
-  ddsd : DDSurfaceDesc;
-  pdds : IDirectDrawSurface;
-  DC : HDC;
-  ddck : DDCOLORKEY;
-const
-  FailName : string = 'DXUtil.DDGetOverlay';
-begin
-{$IFDEF DODEBUG}
-  if ( CurrDbgLvl >= DbgLvlSevere ) then
-    Log.LogEntry( FailName );
-{$ENDIF}
-  try
-    ZeroMemory( @ddsd, SizeOf( ddsd ) );
-    ddsd.dwSize := SizeOf( ddsd );
-    ddsd.dwFlags := DDSD_CAPS + DDSD_HEIGHT + DDSD_WIDTH + DDSD_PIXELFORMAT;
-    ddsd.ddsCaps.dwCaps := DDSCAPS_VIDEOMEMORY or DDSCAPS_OVERLAY;
-    ddsd.dwWidth := BITMAP.Width;
-    ddsd.dwHeight := BITMAP.Height;
-    ddsd.ddpfPixelFormat.dwSize := SizeOf( DDPIXELFORMAT );
-    ddsd.ddpfPixelFormat.dwFlags := DDPF_RGB;
-    ddsd.ddpfPixelFormat.dwRGBBitCount := 16;
-    ddsd.ddpfPixelFormat.dwRBitMask := $0000F800;
-    ddsd.ddpfPixelFormat.dwGBitMask := $000007E0;
-    ddsd.ddpfPixelFormat.dwBBitMask := $0000001F;
-
-    Result := nil;
-
-    if ( lpdd.CreateSurface( ddsd, pdds, nil ) <> DD_OK ) then
-      Exit;
-
-    pdds.GetDC( DC );
-    BitBlt( DC, 0, 0, BITMAP.width, BITMAP.Height, BITMAP.Canvas.Handle, 0, 0, SRCCOPY );
-    pdds.ReleaseDC( DC );
-    ddck.dwColorSpaceLowValue := DDColorMatch( pdds, Color );
-    ddck.dwColorSpaceHighValue := ddck.dwColorSpaceLowValue;
-    pdds.SetColorKey( DDCKEY_SRCBLT, ddck );
-    Result := pdds;
-  except
-    on E : Exception do
-      Log.log( FailName + E.Message );
-  end;
-end;
 
 procedure GetSurfaceDims( var W, H : Integer; Surface : IDirectDrawSurface );
 var
@@ -250,10 +100,11 @@ end;
 
 function DDGetSurface( lpDD : IDirectDraw; W, H : integer; Color : TColor; Video : Boolean; var ColorMatch : integer ) : IDirectDrawSurface;
 var
-  ddsd : DDSurfaceDesc;
+  ddsd : TDDSurfaceDesc;
   pdds : IDirectDrawSurface;
-  ddck : DDCOLORKEY;
-  BltFx : DDBLTFX;
+  ddck : TDDCOLORKEY;
+  BltFx : TDDBLTFX;
+  pr: TRect;
 const
   FailName : string = 'DXUtil.DDGetSurface2';
 begin
@@ -280,15 +131,16 @@ begin
         Exit;
     end;
 
-    ColorMatch := DDColorMatch( pdds, ColorToRGB( Color ) );
+    ColorMatch := SoAOS_DX_ColorMatch( pdds, ColorToRGB( Color ) );
 
     ddck.dwColorSpaceLowValue := ColorMatch;
     ddck.dwColorSpaceHighValue := ddck.dwColorSpaceLowValue;
-    pdds.SetColorKey( DDCKEY_SRCBLT, ddck );
+    pdds.SetColorKey( DDCKEY_SRCBLT, @ddck );
 
     BltFx.dwSize := SizeOf( BltFx );
     BltFx.dwFillColor := ColorMatch;
-    pdds.Blt( Rect( 0, 0, W, H ), nil, Rect( 0, 0, W, H ), DDBLT_COLORFILL + DDBLT_WAIT, BltFx );
+    pr := Rect( 0, 0, W, H );
+    pdds.Blt(@pr, nil, @pr, DDBLT_COLORFILL + DDBLT_WAIT, @BltFx );
     Result := pdds;
   except
     on E : Exception do
@@ -298,11 +150,12 @@ end;
 
 function DDGetSurface( lpDD : IDirectDraw; W, H : integer; Color : TColor; Video : Boolean ) : IDirectDrawSurface;
 var
-  ddsd : DDSurfaceDesc;
+  ddsd : TDDSurfaceDesc;
   pdds : IDirectDrawSurface;
-  ddck : DDCOLORKEY;
-  BltFx : DDBLTFX;
+  ddck : TDDCOLORKEY;
+  BltFx : TDDBLTFX;
   ColorMatch : integer;
+  pr: TRect;
 const
   FailName : string = 'DXUtil.DDGetSurface1';
 begin
@@ -321,30 +174,27 @@ begin
     ddsd.dwHeight := H;
 
     Result := nil;
-
     if ( lpdd.CreateSurface( ddsd, pdds, nil ) <> DD_OK ) then
     begin
       ddsd.ddsCaps.dwCaps := DDSCAPS_OFFSCREENPLAIN or DDSCAPS_SYSTEMMEMORY;
       if ( lpdd.CreateSurface( ddsd, pdds, nil ) <> DD_OK ) then
         Exit;
     end;
-
-    ColorMatch := DDColorMatch( pdds, ColorToRGB( Color ) );
-
+    ColorMatch := SoAOS_DX_ColorMatch( pdds, ColorToRGB( Color ) );
     ddck.dwColorSpaceLowValue := ColorMatch;
     ddck.dwColorSpaceHighValue := ddck.dwColorSpaceLowValue;
-    pdds.SetColorKey( DDCKEY_SRCBLT, ddck );
+    pdds.SetColorKey( DDCKEY_SRCBLT, @ddck );
 
     BltFx.dwSize := SizeOf( BltFx );
     BltFx.dwFillColor := ColorMatch;
-    pdds.Blt( Rect( 0, 0, W, H ), nil, Rect( 0, 0, W, H ), DDBLT_COLORFILL + DDBLT_WAIT, BltFx );
+    pr := Rect( 0, 0, W, H );
+    pdds.Blt(@pr, nil, @pr, DDBLT_COLORFILL + DDBLT_WAIT, @BltFx );
     Result := pdds;
   except
     on E : Exception do
       Log.log( FailName + E.Message );
   end;
 end;
-
 
 end.
 
