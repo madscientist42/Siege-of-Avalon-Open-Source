@@ -8,7 +8,7 @@ This is a composite re-fork from the [**gondur/Siege-of-Avalon-Open-Source**](ht
 The main focuses of this fork: 
 
 1. Moving the Win32 source to newer Delphi 10.3 or later including its free Community Editons. **DONE by SteveNew**
-2. Moving the source code over to something that is more cross-platform as needed (If Delphi 10.3 works right on Linux and OSX...)
+2. Moving the source code over to something that is more cross-platform (While Delphi 10 Enterprise works to this end, it's hardly usable for most, because it costs as much as a high-end gaming laptop...  Which makes it ultimately, a, "NO..." item)
 3. Fixing various glitches and heavy refactoring.
 4. Include HD/FullHD support like already done by gondur. **DONE by SteveNew**
 5. Replace DX with either SDL2/Vulkan/other to gain crossplatform support - this is this Fork's MAIN priority at this time.
