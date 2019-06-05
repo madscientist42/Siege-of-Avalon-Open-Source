@@ -3,7 +3,7 @@
 _"Siege of Avalon : Open Source is an attempt to keep this great isometric RPG game alive by continuing development on it. Our aim is to create a SDL version of the engine that will work on Win32, Linux and where ever Pascal compilers and SDL are supported."_
 
 
-This is a composite re-fork from the [**gondur/Siege-of-Avalon-Open-Source**](https://github.com/gondur/Siege-of-Avalon-Open-Source) [**SteveNew/Siege-of-Avalon-Open-Source**](https://github.com/SteveNew/Siege-of-Avalon-Open-Source) repositories that were derived from a work forked back off by myself of the original source release core and had minimial clean-ups applied with the intent to make it cross-platform.
+This is a composite re-fork from the [**gondur/Siege-of-Avalon-Open-Source**](https://github.com/gondur/Siege-of-Avalon-Open-Source) and [**SteveNew/Siege-of-Avalon-Open-Source**](https://github.com/SteveNew/Siege-of-Avalon-Open-Source) repositories that were derived from a work forked back off by myself of the original source release core and had minimial clean-ups applied with the intent to make it cross-platform.
 
 The main focuses of this fork: 
 
